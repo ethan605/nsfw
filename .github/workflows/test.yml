@@ -7,4 +7,4 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: run
-      uses: cedrickring/golang-action@1.6.0
+      uses: cedrickring/golang-action@1.7.0

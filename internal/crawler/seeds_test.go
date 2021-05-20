@@ -1,9 +1,10 @@
 package crawler
 
 import (
-	"fmt"
 	"testing"
 	"testing/fstest"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInstagramSeeds(t *testing.T) {
@@ -14,7 +15,8 @@ func TestInstagramSeeds(t *testing.T) {
 	}
 
 	b, _ := fs.ReadFile("./instagram.json")
-	fmt.Printf("m.ReadFile: %+v\n", string(b))
+	// fmt.Printf("m.ReadFile: %+v\n", string(b))
+	assert.Equal(t, nil, b)
 
 	// seeds := parseInstagramSeeds(m)
 	// assert.Equal(t, 3, len(seeds))
