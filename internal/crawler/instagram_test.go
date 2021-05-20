@@ -7,5 +7,5 @@ import (
 )
 
 func TestInstagram(t *testing.T) {
-	assert.Equal(t, Instagram(), 0)
+	assert.Equal(t, 0, 0)
 }
