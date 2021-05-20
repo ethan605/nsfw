@@ -16,7 +16,7 @@ func TestInstagramSeeds(t *testing.T) {
 
 	b, _ := fs.ReadFile("./instagram.json")
 	// fmt.Printf("m.ReadFile: %+v\n", string(b))
-	assert.Equal(t, nil, b)
+	assert.Equal(t, []byte(nil), b)
 
 	// seeds := parseInstagramSeeds(m)
 	// assert.Equal(t, 3, len(seeds))
