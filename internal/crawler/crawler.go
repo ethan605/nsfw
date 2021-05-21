@@ -22,10 +22,11 @@ type Seed struct {
 // Session provides methods to access a crawling source
 type Session interface {
 	BaseURL() string
-	FetchProfile(username string) string
-	FetchOtherUsers(username string) string
+	FetchProfile() string
+	FetchRelatedProfiles() string
 }
 
+// Crawl checks and runs crawler against given source
 func Crawl(source Source) error {
 	switch source.Name {
 	case "instagram":
