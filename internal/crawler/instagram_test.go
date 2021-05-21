@@ -13,8 +13,9 @@ func TestCrawlInstagram(t *testing.T) {
 }
 
 func TestInstagramSessions(t *testing.T) {
-	session := instagramSession{}
+	session := instagramSession{sessionID: "fake-session", suggestedQueryHash: "fake-query-hash"}
 
 	assert.Equal(t, "https://instagram.com", session.BaseURL())
-	assert.Equal(t, "https://instagram.com/test-username/?__a=1", session.ProfileURL("test-username"))
+	assert.Equal(t, "https://instagram.com/fake-username/?__a=1", session.FetchProfile("fake-username"))
+	assert.Equal(t, "https://instagram.com/?user_id=fake-username&session=fake-session&query_hash=fake-query-hash", session.FetchOtherUsers("fake-username"))
 }

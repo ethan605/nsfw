@@ -26,6 +26,13 @@ func (s *instagramSession) BaseURL() string {
 	return "https://instagram.com"
 }
 
-func (s *instagramSession) ProfileURL(username string) string {
+func (s *instagramSession) FetchProfile(username string) string {
 	return fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), username)
+}
+
+func (s *instagramSession) FetchOtherUsers(username string) string {
+	return fmt.Sprintf(
+		"%s/?user_id=%s&session=%s&query_hash=%s",
+		s.BaseURL(), username, s.sessionID, s.suggestedQueryHash,
+	)
 }
