@@ -9,6 +9,7 @@ import (
 func main() {
 	fmt.Println("Start crawling...")
 
-	source, _ := os.Open("./configs/crawler/seeds/instagram.json")
-	crawler.CrawlInstagram(source)
+	seedsSource, _ := os.Open("./configs/crawler/seeds/instagram.json")
+	source := crawler.Source{Name: "instagram", RawData: seedsSource}
+	crawler.Crawl(source)
 }

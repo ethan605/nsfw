@@ -8,8 +8,8 @@ import (
 )
 
 func TestCrawlInstagram(t *testing.T) {
-	mockSource := strings.NewReader("[{ \"category\": \"test\", \"username\": \"test\", \"user_id\": \"123456\" }]")
-	assert.NotPanics(t, func() { CrawlInstagram(mockSource) })
+	mockSource := strings.NewReader("[]")
+	assert.NotPanics(t, func() { crawlInstagram(mockSource) })
 }
 
 func TestInstagramSessions(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 )
 
 // CrawlInstagram crawls data from instagram.com
-func CrawlInstagram(source io.Reader) {
+func crawlInstagram(source io.Reader) {
 	seeds := parseSeeds(source)
 	log.Printf("Seeds: %+v\n", seeds)
 }
