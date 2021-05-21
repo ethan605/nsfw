@@ -10,5 +10,5 @@ func main() {
 	fmt.Println("Start crawling...")
 
 	source, _ := os.Open("./configs/crawler/seeds/instagram.json")
-	crawler.Instagram(source)
+	crawler.CrawlInstagram(source)
 }

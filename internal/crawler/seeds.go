@@ -9,6 +9,7 @@ import (
 type Seed struct {
 	Category string `json:"category"`
 	Username string `json:"username"`
+	UserID   string `json:"user_id"`
 }
 
 func parseSeeds(source io.Reader) []Seed {
