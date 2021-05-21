@@ -11,5 +11,5 @@ func main() {
 
 	seedsSource, _ := os.Open("./configs/crawler/seeds/instagram.json")
 	source := crawler.Source{Name: "instagram", RawData: seedsSource}
-	crawler.Crawl(source)
+	_ = crawler.Crawl(source)
 }
