@@ -3,8 +3,6 @@ package crawler
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -39,16 +37,16 @@ func (s *instagramSession) FetchProfile() string {
 	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Username)
 
 	req, err := http.NewRequest(http.MethodGet, profileURL, nil)
-	panicOnError(err)
 	req.Header.Add("Cookie", fmt.Sprintf("sessionid=%s", s.sessionID))
+	panicOnError(err)
 
 	client := http.Client{}
 	resp, err := client.Do(req)
 	panicOnError(err)
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	log.Printf("body: %+v\n", string(body))
+	// body, err := ioutil.ReadAll(resp.Body)
+	// log.Printf("body: %+v\n", string(body))
 
 	return profileURL
 }
