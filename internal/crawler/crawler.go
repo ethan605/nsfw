@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 )
 
 // Source contains information of a crawling source
@@ -52,6 +53,6 @@ func parseSeeds(rawData io.Reader) []Seed {
 
 func panicOnError(err error) {
 	if err != nil {
-		panic(err)
+		log.Panicln(err)
 	}
 }

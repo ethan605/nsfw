@@ -11,7 +11,7 @@ func TestCrawl(t *testing.T) {
 	err := Crawl(Source{Name: "invalid-name"})
 	assert.Error(t, err, "Invalid")
 
-	mockRawData := strings.NewReader("[]")
+	mockRawData := strings.NewReader("[{}]")
 	err = Crawl(Source{Name: "instagram", RawData: mockRawData})
 	assert.Nil(t, err)
 }

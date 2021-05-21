@@ -8,7 +8,7 @@ import (
 )
 
 func TestCrawlInstagram(t *testing.T) {
-	mockSource := strings.NewReader("[]")
+	mockSource := strings.NewReader("[{}]")
 	assert.NotPanics(t, func() { crawlInstagram(mockSource) })
 }
 

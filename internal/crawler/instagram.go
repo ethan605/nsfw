@@ -3,13 +3,21 @@ package crawler
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
+	"net/http"
 )
 
 // CrawlInstagram crawls data from instagram.com
 func crawlInstagram(source io.Reader) {
 	seeds := parseSeeds(source)
-	log.Printf("Seeds: %+v\n", seeds)
+	session := instagramSession{
+		Seed:               seeds[0],
+		sessionID:          "48056993126:ztGeXSRnmEZ6Z7:23",
+		suggestedQueryHash: "d4d88dc1500312af6f937f7b804",
+	}
+
+	session.FetchProfile()
 }
 
 /* Private stuffs */
@@ -28,7 +36,21 @@ func (s *instagramSession) BaseURL() string {
 }
 
 func (s *instagramSession) FetchProfile() string {
-	return fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Username)
+	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Username)
+
+	req, err := http.NewRequest(http.MethodGet, profileURL, nil)
+	panicOnError(err)
+	req.Header.Add("Cookie", fmt.Sprintf("sessionid=%s", s.sessionID))
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	panicOnError(err)
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	log.Printf("body: %+v\n", string(body))
+
+	return profileURL
 }
 
 func (s *instagramSession) FetchRelatedProfiles() string {
