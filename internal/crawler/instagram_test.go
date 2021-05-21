@@ -1,11 +1,13 @@
 package crawler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInstagram(t *testing.T) {
-	assert.Equal(t, 0, 0)
+	mockSource := strings.NewReader("[{ \"category\": \"test\", \"username\": \"test\" }]")
+	assert.NotPanics(t, func() { Instagram(mockSource) })
 }

@@ -7,5 +7,5 @@ import (
 )
 
 func TestCrawler(t *testing.T) {
-	assert.Equal(t, 0, 0)
+	assert.Panics(t, func() { main() }, "open ./configs/crawler/seeds/instagram.json: no such file or directory")
 }

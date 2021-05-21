@@ -1,23 +1,19 @@
 package crawler
 
 import (
+	"strings"
 	"testing"
-	"testing/fstest"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInstagramSeeds(t *testing.T) {
-	fs := fstest.MapFS{
-		"./instagram.json": {
-			Data: []byte("hello, world"),
-		},
-	}
+	mockFile := strings.NewReader("")
+	assert.Panics(t, func() { parseSeeds(mockFile) }, "panic: runtime error: invalid memory address or nil pointer dereference")
 
-	b, _ := fs.ReadFile("./instagram.json")
-	// fmt.Printf("m.ReadFile: %+v\n", string(b))
-	assert.Equal(t, []byte(nil), b)
-
-	// seeds := parseInstagramSeeds(m)
-	// assert.Equal(t, 3, len(seeds))
+	mockFile = strings.NewReader("[{ \"category\": \"test-category\", \"username\": \"test-username\" }]")
+	seeds := parseSeeds(mockFile)
+	assert.Equal(t, 1, len(seeds))
+	assert.Equal(t, "test-category", seeds[0].Category)
+	assert.Equal(t, "test-username", seeds[0].Username)
 }

@@ -1,8 +1,8 @@
 package crawler
 
 import (
-	"io/fs"
-	"log"
+	"encoding/json"
+	"io"
 )
 
 // Seed contains information of crawling sources
@@ -11,21 +11,19 @@ type Seed struct {
 	Username string `json:"username"`
 }
 
-func handleErr(err error) {
+func parseSeeds(source io.Reader) []Seed {
+	byteValue, err := io.ReadAll(source)
+	panicOnError(err)
+
+	var seeds []Seed
+	err = json.Unmarshal(byteValue, &seeds)
+	panicOnError(err)
+
+	return seeds
+}
+
+func panicOnError(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func parseInstagramSeeds(fileSystem fs.FS) []Seed {
-	byteValue, err := fs.ReadFile(fileSystem, "./configs/crawler/seeds/instagram.json")
-	handleErr(err)
-
-	log.Println("File content:", string(byteValue))
-
-	var seeds []Seed
-	// err = json.Unmarshal(byteValue, &seeds)
-	// handleErr(err)
-
-	return seeds
 }

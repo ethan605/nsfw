@@ -1,21 +1,12 @@
 package crawler
 
 import (
-	"io/fs"
-	"io/ioutil"
+	"io"
 	"log"
 )
 
-type osFS struct {
-	fs.FS
-}
-
-func (c osFS) ReadFile(name string) ([]byte, error) {
-	return ioutil.ReadFile(name)
-}
-
 // Instagram crawls data from instagram.com
-func Instagram() {
-	seeds := parseInstagramSeeds(osFS{})
-	log.Println("Seeds:", seeds)
+func Instagram(source io.Reader) {
+	seeds := parseSeeds(source)
+	log.Printf("Seeds: %+v\n", seeds)
 }
