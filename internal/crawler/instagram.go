@@ -3,6 +3,8 @@ package crawler
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -45,8 +47,9 @@ func (s *instagramSession) FetchProfile() string {
 	panicOnError(err)
 	defer resp.Body.Close()
 
-	// body, err := ioutil.ReadAll(resp.Body)
-	// log.Printf("body: %+v\n", string(body))
+	body, err := ioutil.ReadAll(resp.Body)
+	panicOnError(err)
+	log.Printf("body: %+v\n", string(body))
 
 	return profileURL
 }
