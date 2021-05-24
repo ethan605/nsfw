@@ -3,9 +3,15 @@ package crawler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 )
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
 
 // Source contains information of a crawling source
 type Source struct {
@@ -13,18 +19,20 @@ type Source struct {
 	RawData io.Reader
 }
 
-// Seed contains data for the first profile to start crawling
-type Seed struct {
-	Category string `json:"category"`
-	Username string `json:"username"`
-	UserID   string `json:"user_id"`
+// Profile provides information of a user
+type Profile interface {
+	fmt.Stringer
+	AvatarURL() string
+	DisplayName() string
+	ID() string
+	Username() string
 }
 
 // Session provides methods to access a crawling source
 type Session interface {
 	BaseURL() string
-	FetchProfile() string
-	FetchRelatedProfiles() string
+	FetchProfile(client HttpClient) string
+	FetchRelatedProfiles(client HttpClient, fromProfile string) string
 }
 
 // Crawl checks and runs crawler against given source
@@ -40,11 +48,11 @@ func Crawl(source Source) error {
 
 /* Private stuffs */
 
-func parseSeeds(rawData io.Reader) []Seed {
+func parseSeeds(rawData io.Reader) []seedStruct {
 	byteValue, err := io.ReadAll(rawData)
 	panicOnError(err)
 
-	var seeds []Seed
+	var seeds []seedStruct
 	err = json.Unmarshal(byteValue, &seeds)
 	panicOnError(err)
 
@@ -55,4 +63,10 @@ func panicOnError(err error) {
 	if err != nil {
 		log.Panicln(err)
 	}
+}
+
+type seedStruct struct {
+	Category string `json:"category"`
+	Username string `json:"username"`
+	UserID   string `json:"user_id"`
 }
