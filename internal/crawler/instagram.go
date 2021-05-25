@@ -40,8 +40,8 @@ func NewInstagramCrawler(client *resty.Client, config Config) Crawler {
 	const sessionID = "48056993126:tcq6ZS8XmVd6uv:21"
 
 	return &instagramSession{
+		Config:    config,
 		Client:    client,
-		Seed:      config.Seed,
 		SessionID: sessionID,
 	}
 }
@@ -77,7 +77,7 @@ func (s *instagramSession) Crawl() {
 
 		logProfile(profile, 1)
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(s.Config.Defer * time.Second)
 
 		pp, err := s.FetchRelatedProfiles(profile)
 		panicOnError(err)
@@ -97,7 +97,7 @@ var _ crawlSession = (*instagramSession)(nil)
 
 type instagramSession struct {
 	Client *resty.Client
-	Seed   Profile
+	Config Config
 
 	// Cookie
 	SessionID string
@@ -115,7 +115,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 	}
 
 	resp, err := s.Client.R().
-		SetPathParam("username", s.Seed.Username()).
+		SetPathParam("username", s.Config.Seed.Username()).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{

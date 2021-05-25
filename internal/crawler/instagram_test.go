@@ -101,7 +101,9 @@ func TestFetchProfileFails(t *testing.T) {
 
 	session := instagramSession{
 		Client: client,
-		Seed:   instagramProfile{},
+		Config: Config{
+			Seed: instagramProfile{},
+		},
 	}
 
 	_, err := session.FetchProfile()
@@ -109,8 +111,10 @@ func TestFetchProfileFails(t *testing.T) {
 
 	session = instagramSession{
 		Client: client,
-		Seed: instagramProfile{
-			IgName: "invalid.user.name",
+		Config: Config{
+			Seed: instagramProfile{
+				IgName: "invalid.user.name",
+			},
 		},
 	}
 	httpmock.RegisterResponder(
@@ -130,8 +134,10 @@ func TestFetchProfileSuccess(t *testing.T) {
 
 	session := instagramSession{
 		Client: client,
-		Seed: instagramProfile{
-			IgName: fakeUsername,
+		Config: Config{
+			Seed: instagramProfile{
+				IgName: fakeUsername,
+			},
 		},
 	}
 
@@ -162,8 +168,10 @@ func TestFetchRelatedProfilesFails(t *testing.T) {
 
 	session = instagramSession{
 		Client: client,
-		Seed: instagramProfile{
-			IgName: "invalid.user.name",
+		Config: Config{
+			Seed: instagramProfile{
+				IgName: "invalid.user.name",
+			},
 		},
 	}
 	httpmock.RegisterResponder(
