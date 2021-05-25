@@ -11,8 +11,8 @@ import (
 
 // InstagramCrawler initializes a crawler for instagram.com
 type InstagramCrawler struct {
-	Source io.Reader
 	Client HTTPClient
+	Source io.Reader
 }
 
 // Crawl crawls data on instagram.com
