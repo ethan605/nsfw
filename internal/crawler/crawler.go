@@ -5,18 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 )
 
-// HTTPClient abstracts a client to make HTTP requests
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
-// Source contains information of a crawling source
-type Source struct {
-	Name    string
-	RawData io.Reader
+// Crawler represents a crawler instance
+type Crawler interface {
+	Crawl()
 }
 
 // Profile provides information of a user
@@ -29,26 +22,25 @@ type Profile interface {
 	Username() string
 }
 
-// Session provides methods to access a crawling source
-type Session interface {
+/* Private stuffs */
+
+type crawlSession interface {
 	BaseURL() string
 	FetchProfile() (Profile, error)
 	FetchRelatedProfiles(fromProfile Profile) ([]Profile, error)
 }
 
-/* Private stuffs */
-
-type seedStruct struct {
+type crawlSeed struct {
 	Category string `json:"category"`
 	Username string `json:"username"`
 	UserID   string `json:"user_id"`
 }
 
-func parseSeeds(rawData io.Reader) []seedStruct {
+func parseSeeds(rawData io.Reader) []crawlSeed {
 	byteValue, err := io.ReadAll(rawData)
 	panicOnError(err)
 
-	var seeds []seedStruct
+	var seeds []crawlSeed
 	err = json.Unmarshal(byteValue, &seeds)
 	panicOnError(err)
 

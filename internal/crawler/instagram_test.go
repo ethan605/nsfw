@@ -1,28 +1,12 @@
 package crawler
 
 import (
-	"bytes"
-	"io/ioutil"
-	"net/http"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )
-
-type mockClient struct {
-	response string
-}
-
-func (m *mockClient) Do(req *http.Request) (*http.Response, error) {
-	resp := &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(bytes.NewBufferString(m.response)),
-	}
-
-	return resp, nil
-}
 
 /* func TestInstagramCrawler(t *testing.T) {
 	mockSource := strings.NewReader("[{}]")
@@ -34,7 +18,7 @@ func TestInstagramSessions(t *testing.T) {
 	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
 }
 
-func TestFetchProfileFail(t *testing.T) {
+func TestFetchProfileFails(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
@@ -48,7 +32,7 @@ func TestFetchProfileFail(t *testing.T) {
 
 	session = instagramSession{
 		RestyClient: client,
-		Seed: seedStruct{
+		Seed: crawlSeed{
 			Username: "invalid.user.name",
 		},
 	}
@@ -69,7 +53,7 @@ func TestFetchProfileSuccess(t *testing.T) {
 
 	session := instagramSession{
 		RestyClient: client,
-		Seed: seedStruct{
+		Seed: crawlSeed{
 			Category: "fake-category",
 			Username: "fake.user.name",
 		},
@@ -99,35 +83,62 @@ func TestFetchProfileSuccess(t *testing.T) {
 	assert.Equal(t, "<Instagram fake-category 1234 fake.user.name Fake Name>", profile.String())
 }
 
-func TestFetchRelatedProfiles(t *testing.T) {
+func TestFetchRelatedProfilesFails(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
 	session := instagramSession{
-		Client: &mockClient{
-			response: `OK`,
-		},
+		RestyClient: client,
 	}
 
 	_, err := session.FetchRelatedProfiles(instagramProfile{})
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Client: &mockClient{
-			response: `{
-				"data": {
-					"user": {
-						"edge_chaining": {
-							"edges": [
-								{"node": {"id": "1234"}},
-								{"node": {"id": "2345"}},
-								{"node": {"id": "3456"}},
-								{"node": {"id": "4567"}}
-							]
-						}
-					}
-				}
-			}`,
+		RestyClient: client,
+		Seed: crawlSeed{
+			Username: "invalid.user.name",
 		},
-		Seed: seedStruct{Category: "fake-category"},
 	}
+	httpmock.RegisterResponder(
+		"GET",
+		session.BaseURL()+"/graphql/query",
+		httpmock.NewStringResponder(500, "Invalid"),
+	)
+
+	_, err = session.FetchRelatedProfiles(instagramProfile{})
+	assert.EqualError(t, err, "Fetch related profiles error")
+}
+
+func TestFetchRelatedProfilesSuccess(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	session := instagramSession{
+		RestyClient: client,
+		Seed: crawlSeed{
+			Category: "fake-category",
+		},
+	}
+
+	fixture := map[string]interface{}{
+		"data": map[string]interface{}{
+			"user": map[string]interface{}{
+				"edge_chaining": map[string]interface{}{
+					"edges": []map[string]interface{}{
+						{"node": map[string]string{"id": "1234"}},
+						{"node": map[string]string{"id": "2345"}},
+						{"node": map[string]string{"id": "3456"}},
+						{"node": map[string]string{"id": "4567"}},
+					},
+				},
+			},
+		},
+	}
+	responder, _ := httpmock.NewJsonResponder(200, fixture)
+	httpmock.RegisterResponder("GET", session.BaseURL()+"/graphql/query", responder)
 
 	profiles, err := session.FetchRelatedProfiles(instagramProfile{})
 	assert.Equal(t, nil, err)
