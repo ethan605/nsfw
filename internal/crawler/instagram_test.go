@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -8,10 +9,60 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-/* func TestInstagramCrawler(t *testing.T) {
-	mockSource := strings.NewReader("[{}]")
-	assert.NotPanics(t, func() { crawlInstagram(mockSource) })
-} */
+var (
+	profileFixture = map[string]interface{}{
+		"graphql": map[string]interface{}{
+			"user": map[string]string{
+				"full_name":          "Fake Name",
+				"id":                 "1234",
+				"profile_pic_url_hd": "https://profile-pic-url",
+				"username":           "fake.user.name",
+			},
+		},
+	}
+	relatedProfilesFixture = map[string]interface{}{
+		"data": map[string]interface{}{
+			"user": map[string]interface{}{
+				"edge_chaining": map[string]interface{}{
+					"edges": []map[string]interface{}{
+						{"node": map[string]string{"id": "1234"}},
+						{"node": map[string]string{"id": "2345"}},
+						{"node": map[string]string{"id": "3456"}},
+						{"node": map[string]string{"id": "4567"}},
+					},
+				},
+			},
+		},
+	}
+)
+
+func TestInstagramCrawler(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	mockSource := strings.NewReader(`[{
+		"category": "fake-category",
+		"username": "fake.user.name"
+	}]`)
+	session := NewInstagramCrawler(client, mockSource)
+
+	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
+	httpmock.RegisterResponder(
+		"GET",
+		"https://www.instagram.com/fake.user.name/?__a=1",
+		profileResponder,
+	)
+
+	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
+	httpmock.RegisterResponder(
+		"GET",
+		"https://www.instagram.com/graphql/query",
+		relatedProfilesResponder,
+	)
+
+	assert.NotPanics(t, func() { session.Crawl() })
+}
 
 func TestInstagramSessions(t *testing.T) {
 	session := instagramSession{}
@@ -24,14 +75,14 @@ func TestFetchProfileFails(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		RestyClient: client,
+		Client: client,
 	}
 
 	_, err := session.FetchProfile()
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		RestyClient: client,
+		Client: client,
 		Seed: crawlSeed{
 			Username: "invalid.user.name",
 		},
@@ -52,25 +103,15 @@ func TestFetchProfileSuccess(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		RestyClient: client,
+		Client: client,
 		Seed: crawlSeed{
 			Category: "fake-category",
 			Username: "fake.user.name",
 		},
 	}
 
-	fixture := map[string]interface{}{
-		"graphql": map[string]interface{}{
-			"user": map[string]string{
-				"full_name":          "Fake Name",
-				"id":                 "1234",
-				"profile_pic_url_hd": "https://profile-pic-url",
-				"username":           "fake.user.name",
-			},
-		},
-	}
 	fakeURL := session.BaseURL() + "/fake.user.name/?__a=1"
-	responder, _ := httpmock.NewJsonResponder(200, fixture)
+	responder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder("GET", fakeURL, responder)
 
 	profile, err := session.FetchProfile()
@@ -89,14 +130,14 @@ func TestFetchRelatedProfilesFails(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		RestyClient: client,
+		Client: client,
 	}
 
 	_, err := session.FetchRelatedProfiles(instagramProfile{})
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		RestyClient: client,
+		Client: client,
 		Seed: crawlSeed{
 			Username: "invalid.user.name",
 		},
@@ -117,27 +158,13 @@ func TestFetchRelatedProfilesSuccess(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		RestyClient: client,
+		Client: client,
 		Seed: crawlSeed{
 			Category: "fake-category",
 		},
 	}
 
-	fixture := map[string]interface{}{
-		"data": map[string]interface{}{
-			"user": map[string]interface{}{
-				"edge_chaining": map[string]interface{}{
-					"edges": []map[string]interface{}{
-						{"node": map[string]string{"id": "1234"}},
-						{"node": map[string]string{"id": "2345"}},
-						{"node": map[string]string{"id": "3456"}},
-						{"node": map[string]string{"id": "4567"}},
-					},
-				},
-			},
-		},
-	}
-	responder, _ := httpmock.NewJsonResponder(200, fixture)
+	responder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
 	httpmock.RegisterResponder("GET", session.BaseURL()+"/graphql/query", responder)
 
 	profiles, err := session.FetchRelatedProfiles(instagramProfile{})

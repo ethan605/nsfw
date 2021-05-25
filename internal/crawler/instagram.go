@@ -11,16 +11,20 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+const (
+	SuggestedQueryHash = "d4d88dc1500312af6f937f7b804c68c3"
+)
+
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(client *resty.Client, source io.Reader) Crawler {
 	seeds := parseSeeds(source)
 
 	return &instagramSession{
-		RestyClient: resty.New(),
-		Seed:        seeds[0],
+		Client: client,
+		Seed:   seeds[0],
 
-		SessionID:          "48056993126:bT885uz5tm3eBr:22",
-		SuggestedQueryHash: "d4d88dc1500312af6f937f7b804c68c3",
+		// TODO: spawn a headless browser, login & extract session ID from cookies
+		SessionID: "48056993126:bT885uz5tm3eBr:22",
 	}
 }
 
@@ -43,13 +47,11 @@ func (s *instagramSession) Crawl() {
 var _ crawlSession = (*instagramSession)(nil)
 
 type instagramSession struct {
-	RestyClient *resty.Client
-	Seed        crawlSeed
+	Client *resty.Client
+	Seed   crawlSeed
 
 	// Cookie
 	SessionID string
-	// The query_hash to query suggested users
-	SuggestedQueryHash string
 }
 
 func (s *instagramSession) BaseURL() string {
@@ -63,7 +65,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 		}
 	}
 
-	resp, err := s.RestyClient.R().
+	resp, err := s.Client.R().
 		SetPathParam("username", s.Seed.Username).
 		SetQueryParam("__a", "1").
 		SetCookie(&http.Cookie{
@@ -122,9 +124,9 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}
 	}
 
-	resp, err := s.RestyClient.R().
+	resp, err := s.Client.R().
 		SetQueryParams(map[string]string{
-			"query_hash": s.SuggestedQueryHash,
+			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),
 		}).
 		SetCookie(&http.Cookie{
