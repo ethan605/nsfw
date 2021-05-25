@@ -46,7 +46,7 @@ func TestInstagramCrawler(t *testing.T) {
 		"user_id": "1234",
 		"username": "fake.user.name"
 	}]`)
-	session := NewInstagramCrawler(client, mockSource)
+	crawler := NewInstagramCrawler(client, mockSource)
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
@@ -62,7 +62,7 @@ func TestInstagramCrawler(t *testing.T) {
 		relatedProfilesResponder,
 	)
 
-	assert.NotPanics(t, func() { session.Crawl() })
+	assert.NotPanics(t, func() { crawler.Crawl() })
 }
 
 func TestInstagramSessions(t *testing.T) {

@@ -7,12 +7,14 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 )
 
 const (
 	SuggestedQueryHash = "d4d88dc1500312af6f937f7b804c68c3"
+	UserAgent          = "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"
 )
 
 // NewInstagramCrawler initializes a crawler for instagram.com
@@ -37,8 +39,36 @@ func (s *instagramSession) Crawl() {
 	relatedProfiles, err := s.FetchRelatedProfiles(seedProfile)
 	panicOnError(err)
 
+	results := make(chan Profile)
+
 	for _, profile := range relatedProfiles {
-		log.Println("- Related profiles:", profile)
+		go func(profile Profile) {
+			results <- profile
+
+			time.Sleep(2 * time.Second)
+
+			pp, _ := s.FetchRelatedProfiles(profile)
+
+			for _, p := range pp {
+				results <- p
+			}
+		}(profile)
+	}
+
+	resultsCount := 0
+	uniqResults := map[string]Profile{}
+
+	for {
+		select {
+		case profile := <-results:
+			resultsCount++
+			uniqResults[profile.ID()] = profile
+		case <-time.After(3 * time.Second):
+			log.Println("resultsCount", resultsCount)
+			log.Println("uniqResults count", len(uniqResults))
+			close(results)
+			return
+		}
 	}
 }
 
@@ -68,6 +98,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 	resp, err := s.Client.R().
 		SetPathParam("username", s.Seed.Username).
 		SetQueryParam("__a", "1").
+		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
 			Name:  "sessionid",
 			Value: s.SessionID,
@@ -129,6 +160,7 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),
 		}).
+		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
 			Name:  "sessionid",
 			Value: s.SessionID,
@@ -141,6 +173,7 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 	}
 
 	if resp.StatusCode() != 200 {
+		log.Println("Body", string(resp.Body()))
 		return nil, errors.New("Fetch related profiles error")
 	}
 
