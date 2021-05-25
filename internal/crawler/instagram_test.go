@@ -1,7 +1,7 @@
 package crawler
 
 import (
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -41,24 +41,21 @@ func TestInstagramCrawler(t *testing.T) {
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
-	mockSource := strings.NewReader(`[{
-		"category": "fake-category",
-		"user_id": "1234",
-		"username": "fake.user.name"
-	}]`)
-	crawler := NewInstagramCrawler(client, mockSource)
+	baseURL := "https://www.instagram.com"
+	seedProfile := instagramProfile{IgName: "fake.user.name"}
+	crawler := NewInstagramCrawler(client, seedProfile)
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		"https://www.instagram.com/fake.user.name/?__a=1",
+		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile.Username()),
 		profileResponder,
 	)
 
 	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		"https://www.instagram.com/graphql/query",
+		baseURL+"/graphql/query",
 		relatedProfilesResponder,
 	)
 
@@ -77,6 +74,7 @@ func TestFetchProfileFails(t *testing.T) {
 
 	session := instagramSession{
 		Client: client,
+		Seed:   instagramProfile{},
 	}
 
 	_, err := session.FetchProfile()
@@ -84,8 +82,8 @@ func TestFetchProfileFails(t *testing.T) {
 
 	session = instagramSession{
 		Client: client,
-		Seed: crawlSeed{
-			Username: "invalid.user.name",
+		Seed: instagramProfile{
+			IgName: "invalid.user.name",
 		},
 	}
 	httpmock.RegisterResponder(
@@ -105,9 +103,8 @@ func TestFetchProfileSuccess(t *testing.T) {
 
 	session := instagramSession{
 		Client: client,
-		Seed: crawlSeed{
-			Category: "fake-category",
-			Username: "fake.user.name",
+		Seed: instagramProfile{
+			IgName: "fake.user.name",
 		},
 	}
 
@@ -121,8 +118,7 @@ func TestFetchProfileSuccess(t *testing.T) {
 	assert.Equal(t, "1234", profile.ID())
 	assert.Equal(t, "Fake Name", profile.DisplayName())
 	assert.Equal(t, "fake.user.name", profile.Username())
-	assert.Equal(t, "fake-category", profile.Category())
-	assert.Equal(t, "<Instagram fake-category 1234 fake.user.name Fake Name>", profile.String())
+	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
 }
 
 func TestFetchRelatedProfilesFails(t *testing.T) {
@@ -139,8 +135,8 @@ func TestFetchRelatedProfilesFails(t *testing.T) {
 
 	session = instagramSession{
 		Client: client,
-		Seed: crawlSeed{
-			Username: "invalid.user.name",
+		Seed: instagramProfile{
+			IgName: "invalid.user.name",
 		},
 	}
 	httpmock.RegisterResponder(
@@ -160,9 +156,6 @@ func TestFetchRelatedProfilesSuccess(t *testing.T) {
 
 	session := instagramSession{
 		Client: client,
-		Seed: crawlSeed{
-			Category: "fake-category",
-		},
 	}
 
 	responder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
@@ -176,8 +169,4 @@ func TestFetchRelatedProfilesSuccess(t *testing.T) {
 	assert.Equal(t, "2345", profiles[1].ID())
 	assert.Equal(t, "3456", profiles[2].ID())
 	assert.Equal(t, "4567", profiles[3].ID())
-
-	for _, profile := range profiles {
-		assert.Equal(t, "fake-category", profile.Category())
-	}
 }
