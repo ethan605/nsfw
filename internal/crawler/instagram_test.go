@@ -1,7 +1,9 @@
 package crawler
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -12,7 +14,6 @@ import (
 type Object map[string]interface{}
 
 var (
-	baseURL        = "https://www.instagram.com"
 	fakeUsername   = "fake.user.name"
 	profileFixture = Object{
 		"graphql": Object{
@@ -21,20 +22,6 @@ var (
 				"id":                 "1234",
 				"profile_pic_url_hd": "https://profile-pic-url",
 				"username":           fakeUsername,
-			},
-		},
-	}
-	relatedProfilesFixture = Object{
-		"data": Object{
-			"user": Object{
-				"edge_chaining": Object{
-					"edges": []Object{
-						{"node": Object{"id": "1234"}},
-						{"node": Object{"id": "2345"}},
-						{"node": Object{"id": "3456"}},
-						{"node": Object{"id": "4567"}},
-					},
-				},
 			},
 		},
 	}
@@ -70,15 +57,33 @@ func TestNewInstagramCrawler(t *testing.T) {
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile.Username()),
+		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
 		profileResponder,
 	)
 
-	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		baseURL+"/graphql/query",
-		relatedProfilesResponder,
+		"/graphql/query",
+		func(req *http.Request) (*http.Response, error) {
+			variables := Object{}
+			_ = json.Unmarshal([]byte(req.URL.Query().Get("variables")), &variables)
+			userID, _ := variables["user_id"].(string)
+
+			fixturesMap := Object{
+				"1234": generateRelatedProfilesFixture("2345", "3456", "4567", "5678"),
+				"2345": generateRelatedProfilesFixture("3456", "4567", "5678", "6789"),
+				"3456": generateRelatedProfilesFixture("4567", "5678", "6789", "7890"),
+			}
+
+			fixture := fixturesMap[userID]
+
+			if fixture == nil {
+				fixture = fixturesMap["1234"]
+			}
+
+			resp, _ := httpmock.NewJsonResponse(200, fixture)
+			return resp, nil
+		},
 	)
 
 	assert.NotPanics(t, func() { crawler.Crawl() })
@@ -86,7 +91,7 @@ func TestNewInstagramCrawler(t *testing.T) {
 
 func TestInstagramSessions(t *testing.T) {
 	session := instagramSession{}
-	assert.Equal(t, baseURL, session.BaseURL())
+	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
 }
 
 func TestFetchProfileFails(t *testing.T) {
@@ -110,7 +115,7 @@ func TestFetchProfileFails(t *testing.T) {
 	}
 	httpmock.RegisterResponder(
 		"GET",
-		session.BaseURL()+"/invalid.user.name/?__a=1",
+		"/invalid.user.name/?__a=1",
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
@@ -130,7 +135,7 @@ func TestFetchProfileSuccess(t *testing.T) {
 		},
 	}
 
-	fakeURL := fmt.Sprintf("%s/%s/?__a=1", session.BaseURL(), fakeUsername)
+	fakeURL := fmt.Sprintf("/%s/?__a=1", fakeUsername)
 	responder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder("GET", fakeURL, responder)
 
@@ -163,7 +168,7 @@ func TestFetchRelatedProfilesFails(t *testing.T) {
 	}
 	httpmock.RegisterResponder(
 		"GET",
-		session.BaseURL()+"/graphql/query",
+		"/graphql/query",
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
@@ -180,15 +185,36 @@ func TestFetchRelatedProfilesSuccess(t *testing.T) {
 		Client: client,
 	}
 
+	relatedProfilesFixture := generateRelatedProfilesFixture("2345", "3456", "4567", "5678")
 	responder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
-	httpmock.RegisterResponder("GET", session.BaseURL()+"/graphql/query", responder)
+	httpmock.RegisterResponder("GET", "/graphql/query", responder)
 
 	profiles, err := session.FetchRelatedProfiles(instagramProfile{})
 	assert.Equal(t, nil, err)
 
 	assert.Equal(t, 4, len(profiles))
-	assert.Equal(t, "1234", profiles[0].ID())
-	assert.Equal(t, "2345", profiles[1].ID())
-	assert.Equal(t, "3456", profiles[2].ID())
-	assert.Equal(t, "4567", profiles[3].ID())
+	assert.Equal(t, "2345", profiles[0].ID())
+	assert.Equal(t, "3456", profiles[1].ID())
+	assert.Equal(t, "4567", profiles[2].ID())
+	assert.Equal(t, "5678", profiles[3].ID())
+}
+
+/* Private stuffs */
+
+func generateRelatedProfilesFixture(relatedIds ...string) Object {
+	edges := []Object{}
+
+	for _, id := range relatedIds {
+		edges = append(edges, Object{"node": Object{"id": id}})
+	}
+
+	return Object{
+		"data": Object{
+			"user": Object{
+				"edge_chaining": Object{
+					"edges": edges,
+				},
+			},
+		},
+	}
 }
