@@ -12,12 +12,6 @@ import (
 )
 
 var (
-	// SeedProfile provides a default seed to start crawling with
-	SeedProfile = instagramProfile{
-		IgName: "vox.ngoc.traan",
-		UserID: "48056993126",
-	}
-
 	// SuggestedQueryHash is the query param to fetch suggested profiles
 	SuggestedQueryHash = "d4d88dc1500312af6f937f7b804c68c3"
 
@@ -26,7 +20,11 @@ var (
 )
 
 // NewInstagramCrawler initializes a crawler for instagram.com
-func NewInstagramCrawler(client *resty.Client, seed Profile) Crawler {
+func NewInstagramCrawler(client *resty.Client, seedProfile string) Crawler {
+	seed := instagramProfile{
+		IgName: seedProfile,
+	}
+
 	// TODO: spawn a headless browser, login & extract session ID from cookies
 	const sessionID = "48056993126:tcq6ZS8XmVd6uv:21"
 

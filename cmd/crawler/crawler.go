@@ -9,6 +9,10 @@ import (
 
 func main() {
 	fmt.Println("Start crawling...")
-	instagramCrawler := crawler.NewInstagramCrawler(resty.New(), crawler.SeedProfile)
+
+	// TODO: read from somewhere else
+	seedProfile := "vox.ngoc.traan"
+
+	instagramCrawler := crawler.NewInstagramCrawler(resty.New(), seedProfile)
 	instagramCrawler.Crawl()
 }

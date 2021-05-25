@@ -42,13 +42,13 @@ func TestInstagramCrawler(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	baseURL := "https://www.instagram.com"
-	seedProfile := instagramProfile{IgName: "fake.user.name"}
+	seedProfile := "fake.user.name"
 	crawler := NewInstagramCrawler(client, seedProfile)
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile.Username()),
+		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile),
 		profileResponder,
 	)
 
