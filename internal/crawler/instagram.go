@@ -26,7 +26,7 @@ func NewInstagramCrawler(client *resty.Client, source io.Reader) Crawler {
 		Seed:   seeds[0],
 
 		// TODO: spawn a headless browser, login & extract session ID from cookies
-		SessionID: "48056993126:bT885uz5tm3eBr:22",
+		SessionID: "48056993126:tcq6ZS8XmVd6uv:21",
 	}
 }
 
@@ -39,37 +39,40 @@ func (s *instagramSession) Crawl() {
 	relatedProfiles, err := s.FetchRelatedProfiles(seedProfile)
 	panicOnError(err)
 
-	results := make(chan Profile)
-
-	for _, profile := range relatedProfiles {
-		go func(profile Profile) {
-			results <- profile
-
-			time.Sleep(2 * time.Second)
-
-			pp, _ := s.FetchRelatedProfiles(profile)
-
-			for _, p := range pp {
-				results <- p
-			}
-		}(profile)
-	}
-
 	resultsCount := 0
 	uniqResults := map[string]Profile{}
 
-	for {
-		select {
-		case profile := <-results:
-			resultsCount++
-			uniqResults[profile.ID()] = profile
-		case <-time.After(3 * time.Second):
-			log.Println("resultsCount", resultsCount)
-			log.Println("uniqResults count", len(uniqResults))
-			close(results)
-			return
+	logProfile := func(profile Profile, level int) {
+		switch level {
+		case 1:
+			log.Println(" - 1st level related profile:", profile)
+		case 2:
+			log.Println("    - 2nd level related profile:", profile)
+		}
+
+		resultsCount++
+		uniqResults[profile.ID()] = profile
+	}
+
+	for idx, profile := range relatedProfiles {
+		logProfile(profile, 1)
+
+		if idx >= 2 {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
+
+		pp, err := s.FetchRelatedProfiles(profile)
+		panicOnError(err)
+
+		for _, p := range pp {
+			logProfile(p, 2)
 		}
 	}
+
+	log.Println("resultsCount", resultsCount)
+	log.Println("uniqResults count", len(uniqResults))
 }
 
 /* Private stuffs */
