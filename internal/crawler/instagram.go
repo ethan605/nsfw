@@ -19,18 +19,28 @@ var (
 	UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"
 )
 
-// NewInstagramCrawler initializes a crawler for instagram.com
-func NewInstagramCrawler(client *resty.Client, seedProfile string) Crawler {
-	seed := instagramProfile{
-		IgName: seedProfile,
-	}
+func NewInstagramProfile(data map[string]interface{}) Profile {
+	avatarURL, _ := data["AvatarURL"].(string)
+	displayName, _ := data["DisplayName"].(string)
+	id, _ := data["ID"].(string)
+	username, _ := data["Username"].(string)
 
+	return instagramProfile{
+		FullName:      displayName,
+		IgName:        username,
+		ProfilePicURL: avatarURL,
+		UserID:        id,
+	}
+}
+
+// NewInstagramCrawler initializes a crawler for instagram.com
+func NewInstagramCrawler(client *resty.Client, config Config) Crawler {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
 	const sessionID = "48056993126:tcq6ZS8XmVd6uv:21"
 
 	return &instagramSession{
 		Client:    client,
-		Seed:      seed,
+		Seed:      config.Seed,
 		SessionID: sessionID,
 	}
 }

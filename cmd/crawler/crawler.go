@@ -13,6 +13,13 @@ func main() {
 	// TODO: read from somewhere else
 	seedProfile := "vox.ngoc.traan"
 
-	instagramCrawler := crawler.NewInstagramCrawler(resty.New(), seedProfile)
-	instagramCrawler.Crawl()
+	crawler.NewInstagramCrawler(
+		resty.New(),
+		crawler.Config{
+			Defer: 2,
+			Seed: crawler.NewInstagramProfile(map[string]interface{}{
+				"username": seedProfile,
+			}),
+		},
+	).Crawl()
 }

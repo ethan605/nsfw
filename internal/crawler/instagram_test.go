@@ -9,26 +9,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type Object map[string]interface{}
+
 var (
-	profileFixture = map[string]interface{}{
-		"graphql": map[string]interface{}{
-			"user": map[string]string{
+	baseURL        = "https://www.instagram.com"
+	fakeUsername   = "fake.user.name"
+	profileFixture = Object{
+		"graphql": Object{
+			"user": Object{
 				"full_name":          "Fake Name",
 				"id":                 "1234",
 				"profile_pic_url_hd": "https://profile-pic-url",
-				"username":           "fake.user.name",
+				"username":           fakeUsername,
 			},
 		},
 	}
-	relatedProfilesFixture = map[string]interface{}{
-		"data": map[string]interface{}{
-			"user": map[string]interface{}{
-				"edge_chaining": map[string]interface{}{
-					"edges": []map[string]interface{}{
-						{"node": map[string]string{"id": "1234"}},
-						{"node": map[string]string{"id": "2345"}},
-						{"node": map[string]string{"id": "3456"}},
-						{"node": map[string]string{"id": "4567"}},
+	relatedProfilesFixture = Object{
+		"data": Object{
+			"user": Object{
+				"edge_chaining": Object{
+					"edges": []Object{
+						{"node": Object{"id": "1234"}},
+						{"node": Object{"id": "2345"}},
+						{"node": Object{"id": "3456"}},
+						{"node": Object{"id": "4567"}},
 					},
 				},
 			},
@@ -36,19 +40,37 @@ var (
 	}
 )
 
-func TestInstagramCrawler(t *testing.T) {
+func TestNewInstagramProfile(t *testing.T) {
+	profile := NewInstagramProfile(Object{})
+	assert.Equal(t, "", profile.AvatarURL())
+	assert.Equal(t, "", profile.DisplayName())
+	assert.Equal(t, "", profile.ID())
+	assert.Equal(t, "", profile.Username())
+
+	profile = NewInstagramProfile(Object{
+		"AvatarURL":   "https://fake-avatar-url",
+		"DisplayName": "Fake Name",
+		"ID":          "1234",
+		"Username":    fakeUsername,
+	})
+	assert.Equal(t, "https://fake-avatar-url", profile.AvatarURL())
+	assert.Equal(t, "Fake Name", profile.DisplayName())
+	assert.Equal(t, "1234", profile.ID())
+	assert.Equal(t, fakeUsername, profile.Username())
+}
+
+func TestNewInstagramCrawler(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
-	baseURL := "https://www.instagram.com"
-	seedProfile := "fake.user.name"
-	crawler := NewInstagramCrawler(client, seedProfile)
+	seedProfile := instagramProfile{IgName: fakeUsername}
+	crawler := NewInstagramCrawler(client, Config{Seed: seedProfile})
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile),
+		fmt.Sprintf("%s/%s/?__a=1", baseURL, seedProfile.Username()),
 		profileResponder,
 	)
 
@@ -64,7 +86,7 @@ func TestInstagramCrawler(t *testing.T) {
 
 func TestInstagramSessions(t *testing.T) {
 	session := instagramSession{}
-	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
+	assert.Equal(t, baseURL, session.BaseURL())
 }
 
 func TestFetchProfileFails(t *testing.T) {
@@ -104,11 +126,11 @@ func TestFetchProfileSuccess(t *testing.T) {
 	session := instagramSession{
 		Client: client,
 		Seed: instagramProfile{
-			IgName: "fake.user.name",
+			IgName: fakeUsername,
 		},
 	}
 
-	fakeURL := session.BaseURL() + "/fake.user.name/?__a=1"
+	fakeURL := fmt.Sprintf("%s/%s/?__a=1", session.BaseURL(), fakeUsername)
 	responder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder("GET", fakeURL, responder)
 
@@ -117,7 +139,7 @@ func TestFetchProfileSuccess(t *testing.T) {
 	assert.Equal(t, "https://profile-pic-url", profile.AvatarURL())
 	assert.Equal(t, "1234", profile.ID())
 	assert.Equal(t, "Fake Name", profile.DisplayName())
-	assert.Equal(t, "fake.user.name", profile.Username())
+	assert.Equal(t, fakeUsername, profile.Username())
 	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
 }
 
