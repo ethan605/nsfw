@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"nsfw/internal/crawler"
 	"os"
 )
@@ -16,6 +17,10 @@ func main() {
 		log.Panicln("Error reading seed source")
 	}
 
-	source := crawler.Source{Name: "instagram", RawData: seedsSource}
-	_ = crawler.Crawl(source)
+	instagramCrawler := crawler.InstagramCrawler{
+		Source: seedsSource,
+		Client: &http.Client{},
+	}
+
+	instagramCrawler.Crawl()
 }

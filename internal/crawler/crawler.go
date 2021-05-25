@@ -2,14 +2,14 @@ package crawler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 )
 
-type HttpClient interface {
+// HTTPClient abstracts a client to make HTTP requests
+type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
@@ -32,22 +32,17 @@ type Profile interface {
 // Session provides methods to access a crawling source
 type Session interface {
 	BaseURL() string
-	FetchProfile(client HttpClient) (Profile, error)
-	FetchRelatedProfiles(client HttpClient, fromProfile Profile) ([]Profile, error)
-}
-
-// Crawl checks and runs crawler against given source
-func Crawl(source Source) error {
-	switch source.Name {
-	case "instagram":
-		crawlInstagram(source.RawData)
-		return nil
-	default:
-		return errors.New("Invalid source")
-	}
+	FetchProfile() (Profile, error)
+	FetchRelatedProfiles(fromProfile Profile) ([]Profile, error)
 }
 
 /* Private stuffs */
+
+type seedStruct struct {
+	Category string `json:"category"`
+	Username string `json:"username"`
+	UserID   string `json:"user_id"`
+}
 
 func parseSeeds(rawData io.Reader) []seedStruct {
 	byteValue, err := io.ReadAll(rawData)
@@ -64,10 +59,4 @@ func panicOnError(err error) {
 	if err != nil {
 		log.Panicln(err)
 	}
-}
-
-type seedStruct struct {
-	Category string `json:"category"`
-	Username string `json:"username"`
-	UserID   string `json:"user_id"`
 }

@@ -9,25 +9,31 @@ import (
 	"net/http"
 )
 
-// CrawlInstagram crawls data from instagram.com
-func crawlInstagram(source io.Reader) {
-	seeds := parseSeeds(source)
+// InstagramCrawler initializes a crawler for instagram.com
+type InstagramCrawler struct {
+	Source io.Reader
+	Client HTTPClient
+}
+
+// Crawl crawls data on instagram.com
+func (c *InstagramCrawler) Crawl() {
+	seeds := parseSeeds(c.Source)
 	session := instagramSession{
-		seedStruct: seeds[0],
+		Seed:   seeds[0],
+		Client: c.Client,
 
-		// sessionID:          "48056993126:ztGeXSRnmEZ6Z7:23",
-		// suggestedQueryHash: "d4d88dc1500312af6f937f7b804",
+		// SessionID:          "48056993126:ztGeXSRnmEZ6Z7:23",
+		// SuggestedQueryHash: "d4d88dc1500312af6f937f7b804",
 
-		sessionID:          "227619971:4I93ZY9IQywppz:10",
-		suggestedQueryHash: "d4d88dc1500312af6f937f7b804c68c3",
+		SessionID:          "227619971:4I93ZY9IQywppz:10",
+		SuggestedQueryHash: "d4d88dc1500312af6f937f7b804c68c3",
 	}
 
-	client := &http.Client{}
-	seedProfile, err := session.FetchProfile(client)
+	seedProfile, err := session.FetchProfile()
 	panicOnError(err)
 	log.Println("Seed profile:", seedProfile)
 
-	relatedProfiles, err := session.FetchRelatedProfiles(client, seedProfile)
+	relatedProfiles, err := session.FetchRelatedProfiles(seedProfile)
 	panicOnError(err)
 
 	for _, profile := range relatedProfiles {
@@ -40,21 +46,22 @@ func crawlInstagram(source io.Reader) {
 var _ Session = (*instagramSession)(nil)
 
 type instagramSession struct {
-	// Start a session with a seed
-	seedStruct
+	Seed   seedStruct
+	Client HTTPClient
+
 	// Cookie
-	sessionID string
+	SessionID string
 	// The query_hash to query suggested users
-	suggestedQueryHash string
+	SuggestedQueryHash string
 }
 
 func (s *instagramSession) BaseURL() string {
 	return "https://instagram.com"
 }
 
-func (s *instagramSession) FetchProfile(client HttpClient) (Profile, error) {
-	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Username)
-	resp := s.makeRequest(client, profileURL, nil)
+func (s *instagramSession) FetchProfile() (Profile, error) {
+	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Seed.Username)
+	resp := s.makeRequest(profileURL, nil)
 
 	var data struct {
 		Graphql struct {
@@ -69,12 +76,12 @@ func (s *instagramSession) FetchProfile(client HttpClient) (Profile, error) {
 	}
 
 	profile := &data.Graphql.User
-	profile.SeedCategory = s.Category
+	profile.SeedCategory = s.Seed.Category
 
 	return profile, nil
 }
 
-func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile Profile) ([]Profile, error) {
+func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
 	graphqlURL := fmt.Sprintf("%s/graphql/query", s.BaseURL())
 
 	queryVariables := struct {
@@ -98,10 +105,10 @@ func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile P
 	variables, _ := json.Marshal(queryVariables)
 
 	params := map[string]string{
-		"query_hash": s.suggestedQueryHash,
+		"query_hash": s.SuggestedQueryHash,
 		"variables":  string(variables),
 	}
-	resp := s.makeRequest(client, graphqlURL, params)
+	resp := s.makeRequest(graphqlURL, params)
 
 	var data struct {
 		Data struct {
@@ -124,7 +131,7 @@ func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile P
 	profiles := []Profile{}
 
 	for _, edge := range data.Data.User.EdgeChaining.Edges {
-		edge.Node.SeedCategory = s.Category
+		edge.Node.SeedCategory = s.Seed.Category
 		profiles = append(profiles, edge.Node)
 	}
 
@@ -133,11 +140,11 @@ func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile P
 
 /* Private stuffs */
 
-func (s *instagramSession) makeRequest(client HttpClient, url string, params map[string]string) []byte {
+func (s *instagramSession) makeRequest(url string, params map[string]string) []byte {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	panicOnError(err)
 
-	req.Header.Add("Cookie", fmt.Sprintf("sessionid=%s", s.sessionID))
+	req.Header.Add("Cookie", fmt.Sprintf("sessionid=%s", s.SessionID))
 
 	if params != nil {
 		q := req.URL.Query()
@@ -149,7 +156,7 @@ func (s *instagramSession) makeRequest(client HttpClient, url string, params map
 		req.URL.RawQuery = q.Encode()
 	}
 
-	resp, err := client.Do(req)
+	resp, err := s.Client.Do(req)
 	panicOnError(err)
 	defer resp.Body.Close()
 
@@ -162,7 +169,6 @@ func (s *instagramSession) makeRequest(client HttpClient, url string, params map
 type instagramProfile struct {
 	FullName      string `json:"full_name"`
 	IgName        string `json:"username"`
-	IsVerified    bool   `json:"is_verified"`
 	ProfilePicURL string `json:"profile_pic_url_hd"`
 	UserID        string `json:"id"`
 	SeedCategory  string
