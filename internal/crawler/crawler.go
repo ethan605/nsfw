@@ -23,6 +23,7 @@ type Source struct {
 type Profile interface {
 	fmt.Stringer
 	AvatarURL() string
+	Category() string
 	DisplayName() string
 	ID() string
 	Username() string
@@ -31,8 +32,8 @@ type Profile interface {
 // Session provides methods to access a crawling source
 type Session interface {
 	BaseURL() string
-	FetchProfile(client HttpClient) string
-	FetchRelatedProfiles(client HttpClient, fromProfile string) string
+	FetchProfile(client HttpClient) (Profile, error)
+	FetchRelatedProfiles(client HttpClient, fromProfile Profile) ([]Profile, error)
 }
 
 // Crawl checks and runs crawler against given source

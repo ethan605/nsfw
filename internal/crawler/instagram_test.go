@@ -1,16 +1,12 @@
 package crawler
 
 import (
-	"bytes"
-	"io/ioutil"
-	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type mockClient struct {
+/* type mockClient struct {
 	response string
 }
 
@@ -21,12 +17,12 @@ func (m *mockClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
-}
+} */
 
-func TestCrawlInstagram(t *testing.T) {
+/* func TestCrawlInstagram(t *testing.T) {
 	mockSource := strings.NewReader("[{}]")
 	assert.NotPanics(t, func() { crawlInstagram(mockSource) })
-}
+} */
 
 func TestInstagramSessions(t *testing.T) {
 	session := instagramSession{

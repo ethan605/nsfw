@@ -22,8 +22,16 @@ func crawlInstagram(source io.Reader) {
 	}
 
 	client := &http.Client{}
-	session.FetchProfile(client)
-	session.FetchRelatedProfiles(client, "201057170")
+	seedProfile, err := session.FetchProfile(client)
+	panicOnError(err)
+	log.Println("Seed profile:", seedProfile)
+
+	relatedProfiles, err := session.FetchRelatedProfiles(client, seedProfile)
+	panicOnError(err)
+
+	for _, profile := range relatedProfiles {
+		log.Println("- Related profiles:", profile)
+	}
 }
 
 /* Private stuffs */
@@ -31,7 +39,9 @@ func crawlInstagram(source io.Reader) {
 var _ Session = (*instagramSession)(nil)
 
 type instagramSession struct {
+	// Start a session with a seed
 	seedStruct
+	// Cookie
 	sessionID string
 	// The query_hash to query suggested users
 	suggestedQueryHash string
@@ -41,7 +51,7 @@ func (s *instagramSession) BaseURL() string {
 	return "https://instagram.com"
 }
 
-func (s *instagramSession) FetchProfile(client HttpClient) string {
+func (s *instagramSession) FetchProfile(client HttpClient) (Profile, error) {
 	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Username)
 	resp := s.makeRequest(client, profileURL, nil)
 
@@ -52,13 +62,18 @@ func (s *instagramSession) FetchProfile(client HttpClient) string {
 	}
 
 	err := json.Unmarshal(resp, &data)
-	panicOnError(err)
-	log.Println("Resp", data.Graphql.User)
 
-	return string(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	profile := &data.Graphql.User
+	profile.SeedCategory = s.Category
+
+	return profile, nil
 }
 
-func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile string) string {
+func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile Profile) ([]Profile, error) {
 	graphqlURL := fmt.Sprintf("%s/graphql/query", s.BaseURL())
 
 	queryVariables := struct {
@@ -70,7 +85,7 @@ func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile s
 		IncludeHighlightReels  bool   `json:"include_highlight_reels"`
 		IncludeLiveStatus      bool   `json:"include_live_status"`
 	}{
-		UserID:                 fromProfile,
+		UserID:                 fromProfile.ID(),
 		IncludeChaining:        true,
 		IncludeReel:            false,
 		IncludeSuggestedUsers:  true,
@@ -100,10 +115,19 @@ func (s *instagramSession) FetchRelatedProfiles(client HttpClient, fromProfile s
 	}
 
 	err := json.Unmarshal(resp, &data)
-	panicOnError(err)
-	log.Println("Resp:", data.Data.User.EdgeChaining.Edges)
 
-	return string(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	profiles := []Profile{}
+
+	for _, edge := range data.Data.User.EdgeChaining.Edges {
+		edge.Node.SeedCategory = s.Category
+		profiles = append(profiles, edge.Node)
+	}
+
+	return profiles, nil
 }
 
 /* Private stuffs */
@@ -130,7 +154,6 @@ func (s *instagramSession) makeRequest(client HttpClient, url string, params map
 
 	body, err := ioutil.ReadAll(resp.Body)
 	panicOnError(err)
-	// log.Printf("body: %+v\n", string(body))
 
 	return body
 }
@@ -141,14 +164,16 @@ type instagramProfile struct {
 	IsVerified    bool   `json:"is_verified"`
 	ProfilePicURL string `json:"profile_pic_url_hd"`
 	UserID        string `json:"id"`
+	SeedCategory  string
 }
 
 var _ Profile = (*instagramProfile)(nil)
 
-func (p *instagramProfile) AvatarURL() string   { return p.ProfilePicURL }
-func (p *instagramProfile) DisplayName() string { return p.FullName }
-func (p *instagramProfile) Username() string    { return p.IgName }
-func (p *instagramProfile) ID() string          { return p.UserID }
+func (p instagramProfile) AvatarURL() string   { return p.ProfilePicURL }
+func (p instagramProfile) Category() string    { return p.SeedCategory }
+func (p instagramProfile) DisplayName() string { return p.FullName }
+func (p instagramProfile) Username() string    { return p.IgName }
+func (p instagramProfile) ID() string          { return p.UserID }
 func (p instagramProfile) String() string {
-	return fmt.Sprintf("<Instagram %s %s (%s)>", p.UserID, p.IgName, p.FullName)
+	return fmt.Sprintf("<Instagram %s %s %s %s>", p.SeedCategory, p.UserID, p.IgName, p.FullName)
 }
