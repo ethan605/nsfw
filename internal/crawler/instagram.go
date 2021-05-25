@@ -2,25 +2,30 @@ package crawler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/go-resty/resty/v2"
 )
 
 // InstagramCrawler initializes a crawler for instagram.com
 type InstagramCrawler struct {
-	Client HTTPClient
-	Source io.Reader
+	Client      HTTPClient
+	RestyClient resty.Client
+	Source      io.Reader
 }
 
 // Crawl crawls data on instagram.com
 func (c *InstagramCrawler) Crawl() {
 	seeds := parseSeeds(c.Source)
 	session := instagramSession{
-		Seed:   seeds[0],
-		Client: c.Client,
+		Client:      c.Client,
+		RestyClient: resty.New(),
+		Seed:        seeds[0],
 
 		// SessionID:          "48056993126:ztGeXSRnmEZ6Z7:23",
 		// SuggestedQueryHash: "d4d88dc1500312af6f937f7b804",
@@ -33,12 +38,12 @@ func (c *InstagramCrawler) Crawl() {
 	panicOnError(err)
 	log.Println("Seed profile:", seedProfile)
 
-	relatedProfiles, err := session.FetchRelatedProfiles(seedProfile)
-	panicOnError(err)
+	// relatedProfiles, err := session.FetchRelatedProfiles(seedProfile)
+	// panicOnError(err)
 
-	for _, profile := range relatedProfiles {
-		log.Println("- Related profiles:", profile)
-	}
+	// for _, profile := range relatedProfiles {
+	// log.Println("- Related profiles:", profile)
+	// }
 }
 
 /* Private stuffs */
@@ -46,8 +51,9 @@ func (c *InstagramCrawler) Crawl() {
 var _ Session = (*instagramSession)(nil)
 
 type instagramSession struct {
-	Seed   seedStruct
-	Client HTTPClient
+	Seed        seedStruct
+	Client      HTTPClient
+	RestyClient *resty.Client
 
 	// Cookie
 	SessionID string
@@ -56,24 +62,35 @@ type instagramSession struct {
 }
 
 func (s *instagramSession) BaseURL() string {
-	return "https://instagram.com"
+	return "https://www.instagram.com"
 }
 
 func (s *instagramSession) FetchProfile() (Profile, error) {
-	profileURL := fmt.Sprintf("%s/%s/?__a=1", s.BaseURL(), s.Seed.Username)
-	resp := s.makeRequest(profileURL, nil)
-
-	var data struct {
+	type schema struct {
 		Graphql struct {
 			User instagramProfile
 		}
 	}
 
-	err := json.Unmarshal(resp, &data)
+	resp, err := s.RestyClient.R().
+		SetPathParam("username", s.Seed.Username).
+		SetQueryParam("__a", "1").
+		SetCookie(&http.Cookie{
+			Name:  "sessionid",
+			Value: s.SessionID,
+		}).
+		SetResult(&schema{}).
+		Get(s.BaseURL() + "/{username}/")
 
 	if err != nil {
 		return nil, err
 	}
+
+	if resp.StatusCode() != 200 {
+		return nil, errors.New("Fetch profile error")
+	}
+
+	data, _ := resp.Result().(*schema)
 
 	profile := &data.Graphql.User
 	profile.SeedCategory = s.Seed.Category

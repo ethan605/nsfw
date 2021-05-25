@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
+	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,37 +31,65 @@ func (m *mockClient) Do(req *http.Request) (*http.Response, error) {
 
 func TestInstagramSessions(t *testing.T) {
 	session := instagramSession{}
-	assert.Equal(t, "https://instagram.com", session.BaseURL())
+	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
 }
 
-func TestFetchProfile(t *testing.T) {
+func TestFetchProfileFail(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
 	session := instagramSession{
-		Client: &mockClient{
-			response: `OK`,
-		},
+		RestyClient: client,
 	}
 
-	profile, err := session.FetchProfile()
-	assert.Equal(t, nil, profile)
+	_, err := session.FetchProfile()
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Client: &mockClient{
-			response: `{
-				"graphql": {
-					"user": {
-						"full_name": "Fake Name",
-						"id": "1234",
-						"profile_pic_url_hd": "https://profile-pic-url",
-						"username": "fake.user.name"
-					}
-				}
-			}`,
+		RestyClient: client,
+		Seed: seedStruct{
+			Username: "invalid.user.name",
 		},
-		Seed: seedStruct{Category: "fake-category"},
+	}
+	httpmock.RegisterResponder(
+		"GET",
+		session.BaseURL()+"/invalid.user.name/?__a=1",
+		httpmock.NewStringResponder(500, "Invalid"),
+	)
+
+	_, err = session.FetchProfile()
+	assert.EqualError(t, err, "Fetch profile error")
+}
+
+func TestFetchProfileSuccess(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	session := instagramSession{
+		RestyClient: client,
+		Seed: seedStruct{
+			Category: "fake-category",
+			Username: "fake.user.name",
+		},
 	}
 
-	profile, err = session.FetchProfile()
+	fixture := map[string]interface{}{
+		"graphql": map[string]interface{}{
+			"user": map[string]string{
+				"full_name":          "Fake Name",
+				"id":                 "1234",
+				"profile_pic_url_hd": "https://profile-pic-url",
+				"username":           "fake.user.name",
+			},
+		},
+	}
+	fakeURL := session.BaseURL() + "/fake.user.name/?__a=1"
+	responder, _ := httpmock.NewJsonResponder(200, fixture)
+	httpmock.RegisterResponder("GET", fakeURL, responder)
+
+	profile, err := session.FetchProfile()
 	assert.Equal(t, nil, err)
 	assert.Equal(t, "https://profile-pic-url", profile.AvatarURL())
 	assert.Equal(t, "1234", profile.ID())
