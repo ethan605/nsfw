@@ -43,6 +43,7 @@ func TestInstagramCrawler(t *testing.T) {
 
 	mockSource := strings.NewReader(`[{
 		"category": "fake-category",
+		"user_id": "1234",
 		"username": "fake.user.name"
 	}]`)
 	session := NewInstagramCrawler(client, mockSource)
