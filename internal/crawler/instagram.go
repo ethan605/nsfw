@@ -14,6 +14,7 @@ func crawlInstagram(source io.Reader) {
 	seeds := parseSeeds(source)
 	session := instagramSession{
 		seedStruct: seeds[0],
+
 		// sessionID:          "48056993126:ztGeXSRnmEZ6Z7:23",
 		// suggestedQueryHash: "d4d88dc1500312af6f937f7b804",
 

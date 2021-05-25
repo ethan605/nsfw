@@ -20,7 +20,7 @@ func TestParseSeeds(t *testing.T) {
 	mockRawData := strings.NewReader("{}")
 	assert.Panics(t, func() { parseSeeds(mockRawData) }, "panic: runtime error: invalid memory address or nil pointer dereference")
 
-	mockRawData = strings.NewReader("[{ \"category\": \"test-category\", \"username\": \"test-username\", \"user_id\": \"123456\" }]")
+	mockRawData = strings.NewReader(`[{ "category": "test-category", "username": "test-username", "user_id": "123456" }]`)
 	seeds := parseSeeds(mockRawData)
 	assert.Equal(t, 1, len(seeds))
 	assert.Equal(t, "test-category", seeds[0].Category)
