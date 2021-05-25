@@ -46,8 +46,8 @@ func NewInstagramCrawler(client *resty.Client, config Config) Crawler {
 	}
 }
 
-// Crawl crawls data on instagram.com
-func (s *instagramSession) Crawl() {
+// Start begins crawling data on instagram.com
+func (s *instagramSession) Start() {
 	seedProfile, err := s.FetchProfile()
 	panicOnError(err)
 	log.Println("Seed profile:", seedProfile)
@@ -93,6 +93,7 @@ func (s *instagramSession) Crawl() {
 
 /* Private stuffs */
 
+var _ Crawler = (*instagramSession)(nil)
 var _ crawlSession = (*instagramSession)(nil)
 
 type instagramSession struct {

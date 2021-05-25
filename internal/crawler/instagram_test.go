@@ -86,7 +86,7 @@ func TestNewInstagramCrawler(t *testing.T) {
 		},
 	)
 
-	assert.NotPanics(t, func() { crawler.Crawl() })
+	assert.NotPanics(t, func() { crawler.Start() })
 }
 
 func TestInstagramSessions(t *testing.T) {

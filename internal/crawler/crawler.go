@@ -8,7 +8,9 @@ import (
 
 // Crawler represents a crawler instance
 type Crawler interface {
-	Crawl()
+	Start()
+	// Stop()
+	// Pause()
 }
 
 // Profile provides information of a user

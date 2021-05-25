@@ -21,5 +21,5 @@ func main() {
 				"username": seedProfile,
 			}),
 		},
-	).Crawl()
+	).Start()
 }
