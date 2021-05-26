@@ -131,6 +131,7 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 }
 
 func TestInstagramCrawlerStartSuccess(t *testing.T) {
+	// Setup HTTP requests mock
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
@@ -169,14 +170,17 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 		},
 	)
 
+	// Setup output mock
 	output := &mockWriter{}
-	crawler, err := NewInstagramCrawler(Config{
+
+	crawler, _ := NewInstagramCrawler(Config{
 		Client: client,
 		Output: output,
 		Seed:   seed,
 	})
+
+	err := crawler.Start()
 	assert.Equal(t, nil, err)
-	assert.NotPanics(t, func() { crawler.Start() })
 
 	assert.Equal(t, 5, len(output.WrittenProfiles))
 	assert.Equal(t, "1234", output.WrittenProfiles[0].ID())
