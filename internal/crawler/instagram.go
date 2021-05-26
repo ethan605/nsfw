@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -35,60 +34,45 @@ func NewInstagramProfile(data map[string]interface{}) Profile {
 }
 
 // NewInstagramCrawler initializes a crawler for instagram.com
-func NewInstagramCrawler(client *resty.Client, config Config) Crawler {
+func NewInstagramCrawler(config Config) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
-	const sessionID = "48056993126:tcq6ZS8XmVd6uv:21"
+	const sessionID = "48056993126:Oy8vcmxDfwaQQ3:14"
+
+	if config.Client == nil {
+		config.Client = resty.New()
+	}
+
+	if config.Seed == nil {
+		return nil, errors.New("no seed provided")
+	}
 
 	return &instagramSession{
 		Config:    config,
-		Client:    client,
 		SessionID: sessionID,
-	}
+	}, nil
 }
 
 // Start begins crawling data on instagram.com
-func (s *instagramSession) Start() {
+func (s *instagramSession) Start() error {
 	seedProfile, err := s.FetchProfile()
-	panicOnError(err)
+
+	if err != nil {
+		return err
+	}
+
 	log.Println("Seed profile:", seedProfile)
 
 	relatedProfiles, err := s.FetchRelatedProfiles(seedProfile)
-	panicOnError(err)
 
-	resultsCount := 0
-	uniqResults := map[string]Profile{}
-
-	logProfile := func(profile Profile, level int) {
-		switch level {
-		case 1:
-			log.Println(" - 1st level related profile:", profile)
-		case 2:
-			log.Println("    - 2nd level related profile:", profile)
-		}
-
-		resultsCount++
-		uniqResults[profile.ID()] = profile
+	if err != nil {
+		return err
 	}
 
-	for idx, profile := range relatedProfiles {
-		if idx >= 2 {
-			break
-		}
-
-		logProfile(profile, 1)
-
-		time.Sleep(s.Config.Defer * time.Second)
-
-		pp, err := s.FetchRelatedProfiles(profile)
-		panicOnError(err)
-
-		for _, p := range pp {
-			logProfile(p, 2)
-		}
+	for _, profile := range relatedProfiles {
+		log.Println("  - Related profile:", profile)
 	}
 
-	log.Println("resultsCount", resultsCount)
-	log.Println("uniqResults count", len(uniqResults))
+	return nil
 }
 
 /* Private stuffs */
@@ -97,7 +81,6 @@ var _ Crawler = (*instagramSession)(nil)
 var _ crawlSession = (*instagramSession)(nil)
 
 type instagramSession struct {
-	Client *resty.Client
 	Config Config
 
 	// Cookie
@@ -115,13 +98,15 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 		}
 	}
 
-	resp, err := s.Client.R().
+	resp, err := s.Config.Client.R().
 		SetPathParam("username", s.Config.Seed.Username()).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
-			Name:  "sessionid",
-			Value: s.SessionID,
+			Domain: ".instagram.com",
+			Path:   "/",
+			Name:   "sessionid",
+			Value:  s.SessionID,
 		}).
 		SetResult(&schema{}).
 		Get(s.BaseURL() + "/{username}/")
@@ -171,7 +156,7 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}
 	}
 
-	resp, err := s.Client.R().
+	resp, err := s.Config.Client.R().
 		SetQueryParams(map[string]string{
 			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),

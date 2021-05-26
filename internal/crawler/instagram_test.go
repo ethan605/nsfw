@@ -47,12 +47,41 @@ func TestNewInstagramProfile(t *testing.T) {
 }
 
 func TestNewInstagramCrawler(t *testing.T) {
+	_, err := NewInstagramCrawler(Config{Seed: instagramProfile{}})
+	assert.Equal(t, nil, err)
+
+	_, err = NewInstagramCrawler(Config{})
+	assert.EqualError(t, err, "no seed provided")
+}
+
+func TestInstagramCrawlerStartFailure(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	seedProfile := instagramProfile{IgName: fakeUsername}
-	crawler := NewInstagramCrawler(client, Config{Seed: seedProfile})
+	crawler, _ := NewInstagramCrawler(Config{Client: client, Seed: seedProfile})
+
+	err := crawler.Start()
+	assert.NotEqual(t, nil, err)
+
+	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
+	httpmock.RegisterResponder(
+		"GET",
+		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
+		profileResponder,
+	)
+
+	err = crawler.Start()
+	assert.NotEqual(t, nil, err)
+}
+
+func TestInstagramCrawlerStartSuccess(t *testing.T) {
+	client := resty.New()
+	httpmock.ActivateNonDefault(client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	seedProfile := instagramProfile{IgName: fakeUsername}
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
@@ -86,6 +115,8 @@ func TestNewInstagramCrawler(t *testing.T) {
 		},
 	)
 
+	crawler, err := NewInstagramCrawler(Config{Client: client, Seed: seedProfile})
+	assert.Equal(t, nil, err)
 	assert.NotPanics(t, func() { crawler.Start() })
 }
 
@@ -94,15 +125,15 @@ func TestInstagramSessions(t *testing.T) {
 	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
 }
 
-func TestFetchProfileFails(t *testing.T) {
+func TestFetchProfileFailure(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Client: client,
 		Config: Config{
-			Seed: instagramProfile{},
+			Client: client,
+			Seed:   instagramProfile{},
 		},
 	}
 
@@ -110,8 +141,8 @@ func TestFetchProfileFails(t *testing.T) {
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Client: client,
 		Config: Config{
+			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",
 			},
@@ -133,8 +164,8 @@ func TestFetchProfileSuccess(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Client: client,
 		Config: Config{
+			Client: client,
 			Seed: instagramProfile{
 				IgName: fakeUsername,
 			},
@@ -154,21 +185,23 @@ func TestFetchProfileSuccess(t *testing.T) {
 	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
 }
 
-func TestFetchRelatedProfilesFails(t *testing.T) {
+func TestFetchRelatedProfilesFailure(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Client: client,
+		Config: Config{
+			Client: client,
+		},
 	}
 
 	_, err := session.FetchRelatedProfiles(instagramProfile{})
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Client: client,
 		Config: Config{
+			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",
 			},
@@ -190,7 +223,9 @@ func TestFetchRelatedProfilesSuccess(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Client: client,
+		Config: Config{
+			Client: client,
+		},
 	}
 
 	relatedProfilesFixture := generateRelatedProfilesFixture("2345", "3456", "4567", "5678")

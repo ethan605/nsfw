@@ -1,25 +1,28 @@
 package main
 
 import (
-	"fmt"
 	"nsfw/internal/crawler"
-
-	"github.com/go-resty/resty/v2"
 )
 
 func main() {
-	fmt.Println("Start crawling...")
+	crawlInstagram(false)
+}
+
+func crawlInstagram(dryRun bool) {
+	if dryRun {
+		return
+	}
 
 	// TODO: read from somewhere else
 	seedProfile := "vox.ngoc.traan"
 
-	crawler.NewInstagramCrawler(
-		resty.New(),
-		crawler.Config{
-			Defer: 2,
-			Seed: crawler.NewInstagramProfile(map[string]interface{}{
-				"username": seedProfile,
-			}),
-		},
-	).Start()
+	config := crawler.Config{
+		Defer: 2,
+		Seed: crawler.NewInstagramProfile(map[string]interface{}{
+			"Username": seedProfile,
+		}),
+	}
+
+	instagramCrawler, _ := crawler.NewInstagramCrawler(config)
+	_ = instagramCrawler.Start()
 }
