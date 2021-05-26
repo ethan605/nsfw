@@ -131,7 +131,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, errors.New("Fetch profile error")
+		return nil, errors.New("fetch profile error")
 	}
 
 	data, _ := resp.Result().(*schema)
@@ -190,7 +190,7 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 
 	if resp.StatusCode() != 200 {
 		log.Println("Body", string(resp.Body()))
-		return nil, errors.New("Fetch related profiles error")
+		return nil, errors.New("fetch related profiles error")
 	}
 
 	data, _ := resp.Result().(*schema)

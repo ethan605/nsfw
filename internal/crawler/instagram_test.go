@@ -124,7 +124,7 @@ func TestFetchProfileFails(t *testing.T) {
 	)
 
 	_, err = session.FetchProfile()
-	assert.EqualError(t, err, "Fetch profile error")
+	assert.EqualError(t, err, "fetch profile error")
 }
 
 func TestFetchProfileSuccess(t *testing.T) {
@@ -181,7 +181,7 @@ func TestFetchRelatedProfilesFails(t *testing.T) {
 	)
 
 	_, err = session.FetchRelatedProfiles(instagramProfile{})
-	assert.EqualError(t, err, "Fetch related profiles error")
+	assert.EqualError(t, err, "fetch related profiles error")
 }
 
 func TestFetchRelatedProfilesSuccess(t *testing.T) {
