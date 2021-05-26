@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -35,7 +34,7 @@ type Config struct {
 	Client *resty.Client
 	// The amount of time to wait between each request
 	Defer time.Duration
-	// Output pipeline
+	// Output writing stream
 	Output Writer
 	// The initial profile to start crawling with
 	Seed Profile
@@ -47,10 +46,4 @@ type crawlSession interface {
 	BaseURL() string
 	FetchProfile() (Profile, error)
 	FetchRelatedProfiles(fromProfile Profile) ([]Profile, error)
-}
-
-func panicOnError(err error) {
-	if err != nil {
-		log.Panicln(err)
-	}
 }

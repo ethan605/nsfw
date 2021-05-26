@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -27,9 +28,16 @@ var (
 	}
 )
 
-type mockWriter struct{}
+type mockWriter struct {
+	WrittenProfiles []Profile
+}
 
 func (m *mockWriter) Write(profile Profile) error {
+	if profile.ID() == "-1" {
+		return errors.New("error writing to output stream")
+	}
+
+	m.WrittenProfiles = append(m.WrittenProfiles, profile)
 	return nil
 }
 
@@ -79,9 +87,16 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	})
 
 	err := crawler.Start()
+	// FetchProfile error
 	assert.NotEqual(t, nil, err)
 
-	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
+	profileResponder, _ := httpmock.NewJsonResponder(200, Object{
+		"graphql": Object{
+			"user": Object{
+				"id": "-1",
+			},
+		},
+	})
 	httpmock.RegisterResponder(
 		"GET",
 		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
@@ -89,7 +104,30 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	)
 
 	err = crawler.Start()
+	// Config.Output error on seedProfile
+	assert.EqualError(t, err, "error writing to output stream")
+
+	profileResponder, _ = httpmock.NewJsonResponder(200, profileFixture)
+	httpmock.RegisterResponder(
+		"GET",
+		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
+		profileResponder,
+	)
+
+	err = crawler.Start()
+	// FetchRelatedProfiles error
 	assert.NotEqual(t, nil, err)
+
+	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, generateRelatedProfilesFixture("2345", "-1"))
+	httpmock.RegisterResponder(
+		"GET",
+		"/graphql/query",
+		relatedProfilesResponder,
+	)
+
+	err = crawler.Start()
+	// Config.Output error on related profiles
+	assert.EqualError(t, err, "error writing to output stream")
 }
 
 func TestInstagramCrawlerStartSuccess(t *testing.T) {
@@ -97,12 +135,12 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
-	seedProfile := instagramProfile{IgName: fakeUsername}
+	seed := instagramProfile{IgName: fakeUsername}
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 	httpmock.RegisterResponder(
 		"GET",
-		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
+		fmt.Sprintf("/%s/?__a=1", seed.Username()),
 		profileResponder,
 	)
 
@@ -131,13 +169,21 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 		},
 	)
 
+	output := &mockWriter{}
 	crawler, err := NewInstagramCrawler(Config{
 		Client: client,
-		Output: &mockWriter{},
-		Seed:   seedProfile,
+		Output: output,
+		Seed:   seed,
 	})
 	assert.Equal(t, nil, err)
 	assert.NotPanics(t, func() { crawler.Start() })
+
+	assert.Equal(t, 5, len(output.WrittenProfiles))
+	assert.Equal(t, "1234", output.WrittenProfiles[0].ID())
+	assert.Equal(t, "2345", output.WrittenProfiles[1].ID())
+	assert.Equal(t, "3456", output.WrittenProfiles[2].ID())
+	assert.Equal(t, "4567", output.WrittenProfiles[3].ID())
+	assert.Equal(t, "5678", output.WrittenProfiles[4].ID())
 }
 
 func TestInstagramSessions(t *testing.T) {

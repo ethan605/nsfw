@@ -64,8 +64,6 @@ func (s *instagramSession) Start() error {
 		return err
 	}
 
-	// log.Println("Seed profile:", seedProfile)
-
 	err = s.Config.Output.Write(seedProfile)
 
 	if err != nil {
@@ -79,8 +77,6 @@ func (s *instagramSession) Start() error {
 	}
 
 	for _, profile := range relatedProfiles {
-		// log.Println("  - Related profile:", profile)
-
 		err = s.Config.Output.Write(profile)
 
 		if err != nil {
