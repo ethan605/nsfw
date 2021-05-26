@@ -27,6 +27,12 @@ var (
 	}
 )
 
+type mockWriter struct{}
+
+func (m *mockWriter) Write(profile Profile) error {
+	return nil
+}
+
 func TestNewInstagramProfile(t *testing.T) {
 	profile := NewInstagramProfile(Object{})
 	assert.Equal(t, "", profile.AvatarURL())
@@ -47,11 +53,17 @@ func TestNewInstagramProfile(t *testing.T) {
 }
 
 func TestNewInstagramCrawler(t *testing.T) {
-	_, err := NewInstagramCrawler(Config{Seed: instagramProfile{}})
-	assert.Equal(t, nil, err)
+	_, err := NewInstagramCrawler(Config{})
+	assert.EqualError(t, err, "missing required Seed config")
 
-	_, err = NewInstagramCrawler(Config{})
-	assert.EqualError(t, err, "no seed provided")
+	_, err = NewInstagramCrawler(Config{Seed: instagramProfile{}})
+	assert.EqualError(t, err, "missing required Output config")
+
+	_, err = NewInstagramCrawler(Config{
+		Seed:   instagramProfile{},
+		Output: &mockWriter{},
+	})
+	assert.Equal(t, nil, err)
 }
 
 func TestInstagramCrawlerStartFailure(t *testing.T) {
@@ -60,7 +72,11 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	seedProfile := instagramProfile{IgName: fakeUsername}
-	crawler, _ := NewInstagramCrawler(Config{Client: client, Seed: seedProfile})
+	crawler, _ := NewInstagramCrawler(Config{
+		Client: client,
+		Output: &mockWriter{},
+		Seed:   seedProfile,
+	})
 
 	err := crawler.Start()
 	assert.NotEqual(t, nil, err)
@@ -115,7 +131,11 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 		},
 	)
 
-	crawler, err := NewInstagramCrawler(Config{Client: client, Seed: seedProfile})
+	crawler, err := NewInstagramCrawler(Config{
+		Client: client,
+		Output: &mockWriter{},
+		Seed:   seedProfile,
+	})
 	assert.Equal(t, nil, err)
 	assert.NotPanics(t, func() { crawler.Start() })
 }

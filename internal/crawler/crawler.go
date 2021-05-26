@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"time"
 
@@ -25,16 +24,21 @@ type Profile interface {
 	Username() string
 }
 
+// Writer provides interfaces to output profiles
+type Writer interface {
+	Write(profile Profile) error
+}
+
 // Config holds configurations for the crawler
 type Config struct {
 	// HTTP client, auto initialise with `resty.New()` if `nil`
 	Client *resty.Client
 	// The amount of time to wait between each request
 	Defer time.Duration
+	// Output pipeline
+	Output Writer
 	// The initial profile to start crawling with
 	Seed Profile
-	// Output pipeline
-	Writer *io.Writer
 }
 
 /* Private stuffs */

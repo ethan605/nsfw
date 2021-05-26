@@ -43,7 +43,11 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 	}
 
 	if config.Seed == nil {
-		return nil, errors.New("no seed provided")
+		return nil, errors.New("missing required Seed config")
+	}
+
+	if config.Output == nil {
+		return nil, errors.New("missing required Output config")
 	}
 
 	return &instagramSession{
@@ -60,7 +64,13 @@ func (s *instagramSession) Start() error {
 		return err
 	}
 
-	log.Println("Seed profile:", seedProfile)
+	// log.Println("Seed profile:", seedProfile)
+
+	err = s.Config.Output.Write(seedProfile)
+
+	if err != nil {
+		return err
+	}
 
 	relatedProfiles, err := s.FetchRelatedProfiles(seedProfile)
 
@@ -69,7 +79,13 @@ func (s *instagramSession) Start() error {
 	}
 
 	for _, profile := range relatedProfiles {
-		log.Println("  - Related profile:", profile)
+		// log.Println("  - Related profile:", profile)
+
+		err = s.Config.Output.Write(profile)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
