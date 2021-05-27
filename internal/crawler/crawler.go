@@ -10,8 +10,6 @@ import (
 // Crawler represents a crawler instance
 type Crawler interface {
 	Start() error
-	// Stop() error
-	// Pause() error
 }
 
 // Profile provides information of a user
