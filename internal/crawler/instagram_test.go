@@ -12,43 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type Object map[string]interface{}
-
-var (
-	fakeUsername   = "fake.user.name"
-	profileFixture = Object{
-		"graphql": Object{
-			"user": Object{
-				"full_name":          "Fake Name",
-				"id":                 "1234",
-				"profile_pic_url_hd": "https://profile-pic-url",
-				"username":           fakeUsername,
-			},
-		},
-	}
-)
-
-type mockWriter struct {
-	WrittenProfiles []Profile
-}
-
-func (m *mockWriter) Write(profile Profile) error {
-	if profile.ID() == "-1" {
-		return errors.New("error writing to output stream")
-	}
-
-	m.WrittenProfiles = append(m.WrittenProfiles, profile)
-	return nil
-}
-
 func TestNewInstagramProfile(t *testing.T) {
-	profile := NewInstagramProfile(Object{})
+	profile := NewInstagramProfile(object{})
 	assert.Equal(t, "", profile.AvatarURL())
 	assert.Equal(t, "", profile.DisplayName())
 	assert.Equal(t, "", profile.ID())
 	assert.Equal(t, "", profile.Username())
 
-	profile = NewInstagramProfile(Object{
+	profile = NewInstagramProfile(object{
 		"AvatarURL":   "https://fake-avatar-url",
 		"DisplayName": "Fake Name",
 		"ID":          "1234",
@@ -58,6 +29,7 @@ func TestNewInstagramProfile(t *testing.T) {
 	assert.Equal(t, "Fake Name", profile.DisplayName())
 	assert.Equal(t, "1234", profile.ID())
 	assert.Equal(t, fakeUsername, profile.Username())
+	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
 }
 
 func TestNewInstagramCrawler(t *testing.T) {
@@ -90,9 +62,9 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	// FetchProfile error
 	assert.NotEqual(t, nil, err)
 
-	profileResponder, _ := httpmock.NewJsonResponder(200, Object{
-		"graphql": Object{
-			"user": Object{
+	profileResponder, _ := httpmock.NewJsonResponder(200, object{
+		"graphql": object{
+			"user": object{
 				"id": "-1",
 			},
 		},
@@ -149,11 +121,11 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 		"GET",
 		"/graphql/query",
 		func(req *http.Request) (*http.Response, error) {
-			variables := Object{}
+			variables := object{}
 			_ = json.Unmarshal([]byte(req.URL.Query().Get("variables")), &variables)
 			userID, _ := variables["user_id"].(string)
 
-			fixturesMap := Object{
+			fixturesMap := object{
 				"1234": generateRelatedProfilesFixture("2345", "3456", "4567", "5678"),
 				"2345": generateRelatedProfilesFixture("3456", "4567", "5678", "6789"),
 				"3456": generateRelatedProfilesFixture("4567", "5678", "6789", "7890"),
@@ -190,11 +162,6 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 	assert.Equal(t, "5678", output.WrittenProfiles[4].ID())
 }
 
-func TestInstagramSessions(t *testing.T) {
-	session := instagramSession{}
-	assert.Equal(t, "https://www.instagram.com", session.BaseURL())
-}
-
 func TestFetchProfileFailure(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
@@ -207,7 +174,7 @@ func TestFetchProfileFailure(t *testing.T) {
 		},
 	}
 
-	_, err := session.FetchProfile()
+	_, err := session.fetchProfile()
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
@@ -224,35 +191,8 @@ func TestFetchProfileFailure(t *testing.T) {
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
-	_, err = session.FetchProfile()
+	_, err = session.fetchProfile()
 	assert.EqualError(t, err, "fetch profile error")
-}
-
-func TestFetchProfileSuccess(t *testing.T) {
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
-	defer httpmock.DeactivateAndReset()
-
-	session := instagramSession{
-		Config: Config{
-			Client: client,
-			Seed: instagramProfile{
-				IgName: fakeUsername,
-			},
-		},
-	}
-
-	fakeURL := fmt.Sprintf("/%s/?__a=1", fakeUsername)
-	responder, _ := httpmock.NewJsonResponder(200, profileFixture)
-	httpmock.RegisterResponder("GET", fakeURL, responder)
-
-	profile, err := session.FetchProfile()
-	assert.Equal(t, nil, err)
-	assert.Equal(t, "https://profile-pic-url", profile.AvatarURL())
-	assert.Equal(t, "1234", profile.ID())
-	assert.Equal(t, "Fake Name", profile.DisplayName())
-	assert.Equal(t, fakeUsername, profile.Username())
-	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
 }
 
 func TestFetchRelatedProfilesFailure(t *testing.T) {
@@ -266,7 +206,7 @@ func TestFetchRelatedProfilesFailure(t *testing.T) {
 		},
 	}
 
-	_, err := session.FetchRelatedProfiles(instagramProfile{})
+	_, err := session.fetchRelatedProfiles(instagramProfile{})
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
@@ -283,48 +223,57 @@ func TestFetchRelatedProfilesFailure(t *testing.T) {
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
-	_, err = session.FetchRelatedProfiles(instagramProfile{})
+	_, err = session.fetchRelatedProfiles(instagramProfile{})
 	assert.EqualError(t, err, "fetch related profiles error")
 }
 
-func TestFetchRelatedProfilesSuccess(t *testing.T) {
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
-	defer httpmock.DeactivateAndReset()
-
-	session := instagramSession{
-		Config: Config{
-			Client: client,
-		},
-	}
-
-	relatedProfilesFixture := generateRelatedProfilesFixture("2345", "3456", "4567", "5678")
-	responder, _ := httpmock.NewJsonResponder(200, relatedProfilesFixture)
-	httpmock.RegisterResponder("GET", "/graphql/query", responder)
-
-	profiles, err := session.FetchRelatedProfiles(instagramProfile{})
-	assert.Equal(t, nil, err)
-
-	assert.Equal(t, 4, len(profiles))
-	assert.Equal(t, "2345", profiles[0].ID())
-	assert.Equal(t, "3456", profiles[1].ID())
-	assert.Equal(t, "4567", profiles[2].ID())
-	assert.Equal(t, "5678", profiles[3].ID())
+func TestInstagramSessions(t *testing.T) {
+	session := instagramSession{}
+	assert.Equal(t, "https://www.instagram.com", session.baseURL())
 }
 
 /* Private stuffs */
 
-func generateRelatedProfilesFixture(relatedIds ...string) Object {
-	edges := []Object{}
+type object map[string]interface{}
 
-	for _, id := range relatedIds {
-		edges = append(edges, Object{"node": Object{"id": id}})
+var (
+	fakeUsername   = "fake.user.name"
+	profileFixture = object{
+		"graphql": object{
+			"user": object{
+				"full_name":          "Fake Name",
+				"id":                 "1234",
+				"profile_pic_url_hd": "https://profile-pic-url",
+				"username":           fakeUsername,
+			},
+		},
+	}
+)
+
+type mockWriter struct {
+	WrittenProfiles []Profile
+}
+
+func (m *mockWriter) Write(profile Profile) error {
+	if profile.ID() == "-1" {
+		return errors.New("error writing to output stream")
 	}
 
-	return Object{
-		"data": Object{
-			"user": Object{
-				"edge_chaining": Object{
+	m.WrittenProfiles = append(m.WrittenProfiles, profile)
+	return nil
+}
+
+func generateRelatedProfilesFixture(relatedIds ...string) object {
+	edges := []object{}
+
+	for _, id := range relatedIds {
+		edges = append(edges, object{"node": object{"id": id}})
+	}
+
+	return object{
+		"data": object{
+			"user": object{
+				"edge_chaining": object{
 					"edges": edges,
 				},
 			},

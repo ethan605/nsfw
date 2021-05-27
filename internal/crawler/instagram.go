@@ -58,7 +58,7 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 
 // Start begins crawling data on instagram.com
 func (s *instagramSession) Start() error {
-	seedProfile, err := s.FetchProfile()
+	seedProfile, err := s.fetchProfile()
 
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (s *instagramSession) Start() error {
 		return err
 	}
 
-	relatedProfiles, err := s.FetchRelatedProfiles(seedProfile)
+	relatedProfiles, err := s.fetchRelatedProfiles(seedProfile)
 
 	if err != nil {
 		return err
@@ -90,7 +90,6 @@ func (s *instagramSession) Start() error {
 /* Private stuffs */
 
 var _ Crawler = (*instagramSession)(nil)
-var _ crawlSession = (*instagramSession)(nil)
 
 type instagramSession struct {
 	Config Config
@@ -99,11 +98,11 @@ type instagramSession struct {
 	SessionID string
 }
 
-func (s *instagramSession) BaseURL() string {
+func (s *instagramSession) baseURL() string {
 	return "https://www.instagram.com"
 }
 
-func (s *instagramSession) FetchProfile() (Profile, error) {
+func (s *instagramSession) fetchProfile() (Profile, error) {
 	type schema struct {
 		Graphql struct {
 			User instagramProfile
@@ -121,7 +120,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 			Value:  s.SessionID,
 		}).
 		SetResult(&schema{}).
-		Get(s.BaseURL() + "/{username}/")
+		Get(s.baseURL() + "/{username}/")
 
 	if err != nil {
 		return nil, err
@@ -135,7 +134,7 @@ func (s *instagramSession) FetchProfile() (Profile, error) {
 	return data.Graphql.User, nil
 }
 
-func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
+func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
 	queryVariables := struct {
 		UserID                 string `json:"user_id"`
 		IncludeChaining        bool   `json:"include_chaining"`
@@ -179,7 +178,7 @@ func (s *instagramSession) FetchRelatedProfiles(fromProfile Profile) ([]Profile,
 			Value: s.SessionID,
 		}).
 		SetResult(&schema{}).
-		Get(s.BaseURL() + "/graphql/query")
+		Get(s.baseURL() + "/graphql/query")
 
 	if err != nil {
 		return nil, err

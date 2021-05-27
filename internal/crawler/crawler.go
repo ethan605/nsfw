@@ -39,11 +39,3 @@ type Config struct {
 	// The initial profile to start crawling with
 	Seed Profile
 }
-
-/* Private stuffs */
-
-type crawlSession interface {
-	BaseURL() string
-	FetchProfile() (Profile, error)
-	FetchRelatedProfiles(fromProfile Profile) ([]Profile, error)
-}
