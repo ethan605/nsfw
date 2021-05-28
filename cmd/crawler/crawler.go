@@ -1,15 +1,18 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"nsfw/internal/crawler"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	logrus.SetLevel(logrus.DebugLevel)
+
 	crawlInstagram(true)
 	expGoroutines()
 }
@@ -19,7 +22,7 @@ func main() {
 type crawlerOutput struct{}
 
 func (o *crawlerOutput) Write(profile crawler.Profile) error {
-	log.Println(" - Crawled profile:", profile)
+	logrus.Debug(" - Crawled profile:", profile)
 	return nil
 }
 
@@ -48,74 +51,115 @@ func crawlInstagram(dryRun bool) {
 
 func panicOnError(err error) {
 	if err != nil {
-		log.Panicln(err)
+		logrus.Panicln(err)
 	}
+}
+
+func randomWait(min int) {
+	rand.Seed(time.Now().UnixNano())
+	time.Sleep((time.Duration)(rand.Intn(100)+min) * time.Millisecond)
+}
+
+func fetchProfile() int {
+	randomWait(500)
+	return 1
+}
+
+func fetchRelatedProfiles(fromProfile int) []int {
+	randomWait(1000)
+	profiles := []int{}
+
+	for idx := 1; idx <= 3; idx++ {
+		profiles = append(profiles, fromProfile*100+idx)
+	}
+
+	return profiles
+}
+
+type scheduler struct {
+	wg       *sync.WaitGroup
+	queue    chan int
+	done     chan struct{}
+	limitter <-chan time.Time
+}
+
+func (s *scheduler) writeProfile(profile int) {
+	logrus.WithField("profile", profile).Debug("enqueue")
+	s.queue <- profile
+}
+
+func (s *scheduler) run() {
+	s.wg = &sync.WaitGroup{}
+
+	seedProfile := fetchProfile()
+	go s.writeProfile(seedProfile)
+
+	s.wg.Add(1)
+	go s.crawlProfiles(seedProfile, 0)
+
+	s.wg.Wait()
+	close(s.done)
+}
+
+func (s *scheduler) results() <-chan int {
+	results := make(chan int)
+
+	go func() {
+		for {
+			select {
+			case profile := <-s.queue:
+				results <- profile
+			case <-s.done:
+				close(results)
+				return
+			}
+		}
+	}()
+
+	return results
+}
+
+func (s *scheduler) crawlProfiles(fromProfile int, level int) {
+	if level >= 2 {
+		s.wg.Done()
+		return
+	}
+
+	<-s.limitter
+
+	logrus.
+		WithFields(logrus.Fields{"fromProfile": fromProfile, "time": time.Now().Format(time.RFC3339Nano)}).
+		Debug("crawl")
+
+	for _, profile := range fetchRelatedProfiles(fromProfile) {
+		s.queue <- profile
+		s.wg.Add(1)
+		go s.crawlProfiles(profile, level+1)
+	}
+
+	s.wg.Done()
 }
 
 func expGoroutines() {
 	queue := make(chan int)
-	limiter := make(chan struct{}, 5)
+	done := make(chan struct{})
+	limitter := time.Tick(time.Second)
 
-	/* createStopSignal := func() <-chan struct{} {
-		done := make(chan struct{})
-
-		go func() {
-			<-time.After(3 * time.Second)
-			done <- struct{}{}
-		}()
-
-		return done
+	s := scheduler{
+		done:     done,
+		limitter: limitter,
+		queue:    queue,
 	}
 
-	timer := createStopSignal() */
+	go s.run()
 
-	fetchProfile := func() int {
-		time.Sleep(300 * time.Millisecond)
-		return 1
+	for profile := range s.results() {
+		logrus.
+			WithFields(logrus.Fields{"profile": profile}).
+			Debug(" - write")
 	}
 
-	fetchRelatedProfiles := func(fromProfile int) []int {
-		rand.Seed(time.Now().UnixNano())
-
-		time.Sleep((time.Duration)(rand.Intn(100)+500) * time.Millisecond)
-		profiles := []int{}
-		numRelatedProfiles := rand.Intn(4) + 8
-
-		for idx := 1; idx <= numRelatedProfiles; idx++ {
-			profiles = append(profiles, fromProfile*100+idx)
-		}
-
-		return profiles
-	}
-
-	go func() {
-		seedProfile := fetchProfile()
-		log.Println(" - enqueue", seedProfile)
-		queue <- seedProfile
-
-		for _, profile := range fetchRelatedProfiles(seedProfile) {
-			log.Println(" - enqueue", profile)
-			queue <- profile
-		}
-
-		close(queue)
-	}()
-
-	var wg sync.WaitGroup
-
-	for num := range queue {
-		wg.Add(1)
-
-		go func(num int) {
-			limiter <- struct{}{}
-			log.Println("  - processing:", num, len(limiter))
-			time.Sleep(time.Second)
-			<-limiter
-			log.Println("    - done:", num, len(limiter))
-			wg.Done()
-		}(num)
-	}
-
-	wg.Wait()
-	log.Println("Exitting. Goroutines:", runtime.NumGoroutine())
+	logrus.
+		WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
+		Debug("Exitting")
 }
