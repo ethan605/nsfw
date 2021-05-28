@@ -2,8 +2,10 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"nsfw/internal/crawler"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -50,60 +52,70 @@ func panicOnError(err error) {
 	}
 }
 
-func createStopSignal() <-chan struct{} {
-	done := make(chan struct{})
-	// sig := make(chan os.Signal, 1)
-	// signal.Notify(sig, os.Interrupt)
-
-	go func() {
-		<-time.After(3 * time.Second)
-		// <-sig
-		done <- struct{}{}
-	}()
-
-	return done
-}
-
 func expGoroutines() {
 	queue := make(chan int)
 	limiter := make(chan struct{}, 5)
-	stopper := createStopSignal()
-	done := make(chan struct{})
 
-	producer := func(quit <-chan struct{}) {
-		num := 0
+	/* createStopSignal := func() <-chan struct{} {
+		done := make(chan struct{})
 
-		for {
-			select {
-			case <-quit:
-				log.Println("[Stop signal received]")
-				close(queue)
-				return
-			default:
-				num++
-				log.Println("enqueue:", num)
-				time.Sleep(100 * time.Millisecond)
-				queue <- num
-			}
-		}
+		go func() {
+			<-time.After(3 * time.Second)
+			done <- struct{}{}
+		}()
+
+		return done
 	}
 
-	go producer(stopper)
+	timer := createStopSignal() */
+
+	fetchProfile := func() int {
+		time.Sleep(300 * time.Millisecond)
+		return 1
+	}
+
+	fetchRelatedProfiles := func(fromProfile int) []int {
+		rand.Seed(time.Now().UnixNano())
+
+		time.Sleep((time.Duration)(rand.Intn(100)+500) * time.Millisecond)
+		profiles := []int{}
+		numRelatedProfiles := rand.Intn(4) + 8
+
+		for idx := 1; idx <= numRelatedProfiles; idx++ {
+			profiles = append(profiles, fromProfile*100+idx)
+		}
+
+		return profiles
+	}
+
+	go func() {
+		seedProfile := fetchProfile()
+		log.Println(" - enqueue", seedProfile)
+		queue <- seedProfile
+
+		for _, profile := range fetchRelatedProfiles(seedProfile) {
+			log.Println(" - enqueue", profile)
+			queue <- profile
+		}
+
+		close(queue)
+	}()
+
+	var wg sync.WaitGroup
 
 	for num := range queue {
+		wg.Add(1)
+
 		go func(num int) {
 			limiter <- struct{}{}
 			log.Println("  - processing:", num, len(limiter))
 			time.Sleep(time.Second)
 			<-limiter
 			log.Println("    - done:", num, len(limiter))
-
-			if len(limiter) == 0 {
-				close(done)
-			}
+			wg.Done()
 		}(num)
 	}
 
-	<-done
+	wg.Wait()
 	log.Println("Exitting. Goroutines:", runtime.NumGoroutine())
 }
