@@ -12,24 +12,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewInstagramProfile(t *testing.T) {
-	profile := NewInstagramProfile(object{})
+func TestNewInstagramSeed(t *testing.T) {
+	profile := NewInstagramSeed(fakeUsername)
 	assert.Equal(t, "", profile.AvatarURL())
 	assert.Equal(t, "", profile.DisplayName())
 	assert.Equal(t, "", profile.ID())
-	assert.Equal(t, "", profile.Username())
-
-	profile = NewInstagramProfile(object{
-		"AvatarURL":   "https://fake-avatar-url",
-		"DisplayName": "Fake Name",
-		"ID":          "1234",
-		"Username":    fakeUsername,
-	})
-	assert.Equal(t, "https://fake-avatar-url", profile.AvatarURL())
-	assert.Equal(t, "Fake Name", profile.DisplayName())
-	assert.Equal(t, "1234", profile.ID())
 	assert.Equal(t, fakeUsername, profile.Username())
-	assert.Equal(t, "<Instagram 1234 fake.user.name Fake Name>", profile.String())
+	assert.Equal(t, "<Instagram  fake.user.name >", profile.String())
 }
 
 func TestNewInstagramCrawler(t *testing.T) {

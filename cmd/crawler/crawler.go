@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"nsfw/internal/crawler"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -32,14 +32,11 @@ func crawlInstagram(dryRun bool) {
 	}
 
 	// TODO: read from somewhere else
-	seedProfile := "vox.ngoc.traan"
+	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
-		Defer:  2,
 		Output: &crawlerOutput{},
-		Seed: crawler.NewInstagramProfile(map[string]interface{}{
-			"Username": seedProfile,
-		}),
+		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
 
 	instagramCrawler, err := crawler.NewInstagramCrawler(config)
@@ -60,103 +57,40 @@ func randomWait(min int) {
 	time.Sleep((time.Duration)(rand.Intn(100)+min) * time.Millisecond)
 }
 
-func fetchProfile() int {
+func fetchProfile() crawler.Profile {
 	randomWait(500)
-	return 1
+	return crawler.NewInstagramSeed("1")
 }
 
-func fetchRelatedProfiles(fromProfile int) []int {
-	randomWait(1000)
-	profiles := []int{}
+func fetchRelatedProfiles(fromProfile crawler.Profile) []crawler.Profile {
+	logrus.
+		WithFields(logrus.Fields{
+			"profile": fromProfile.Username(),
+			"time":    time.Now().Format("15:04:05.999"),
+		}).
+		Debug("crawling")
+
+	// randomWait(200)
+	profiles := []crawler.Profile{}
 
 	for idx := 1; idx <= 3; idx++ {
-		profiles = append(profiles, fromProfile*100+idx)
+		relatedProfile := crawler.NewInstagramSeed(fmt.Sprintf("%s/%d", fromProfile.Username(), idx))
+		profiles = append(profiles, relatedProfile)
 	}
 
 	return profiles
 }
 
-type scheduler struct {
-	wg       *sync.WaitGroup
-	queue    chan int
-	done     chan struct{}
-	limitter <-chan time.Time
-}
-
-func (s *scheduler) writeProfile(profile int) {
-	logrus.WithField("profile", profile).Debug("enqueue")
-	s.queue <- profile
-}
-
-func (s *scheduler) run() {
-	s.wg = &sync.WaitGroup{}
+func expGoroutines() {
+	s := crawler.NewScheduler(time.Second, 3)
 
 	seedProfile := fetchProfile()
-	go s.writeProfile(seedProfile)
+	go s.Run(fetchRelatedProfiles, seedProfile)
 
-	s.wg.Add(1)
-	go s.crawlProfiles(seedProfile, 0)
-
-	s.wg.Wait()
-	close(s.done)
-}
-
-func (s *scheduler) results() <-chan int {
-	results := make(chan int)
-
-	go func() {
-		for {
-			select {
-			case profile := <-s.queue:
-				results <- profile
-			case <-s.done:
-				close(results)
-				return
-			}
-		}
-	}()
-
-	return results
-}
-
-func (s *scheduler) crawlProfiles(fromProfile int, level int) {
-	if level >= 2 {
-		s.wg.Done()
-		return
-	}
-
-	<-s.limitter
-
-	logrus.
-		WithFields(logrus.Fields{"fromProfile": fromProfile, "time": time.Now().Format(time.RFC3339Nano)}).
-		Debug("crawl")
-
-	for _, profile := range fetchRelatedProfiles(fromProfile) {
-		s.queue <- profile
-		s.wg.Add(1)
-		go s.crawlProfiles(profile, level+1)
-	}
-
-	s.wg.Done()
-}
-
-func expGoroutines() {
-	queue := make(chan int)
-	done := make(chan struct{})
-	limitter := time.Tick(time.Second)
-
-	s := scheduler{
-		done:     done,
-		limitter: limitter,
-		queue:    queue,
-	}
-
-	go s.run()
-
-	for profile := range s.results() {
+	for profile := range s.Results() {
 		logrus.
-			WithFields(logrus.Fields{"profile": profile}).
-			Debug(" - write")
+			WithFields(logrus.Fields{"profile": profile.Username()}).
+			Debug(" writing")
 	}
 
 	logrus.
