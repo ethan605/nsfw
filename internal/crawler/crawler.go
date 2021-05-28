@@ -8,7 +8,7 @@ import (
 
 // Crawler represents a crawler instance
 type Crawler interface {
-	Start() error
+	Start(Scheduler) error
 }
 
 // Profile provides information of a user
@@ -22,7 +22,7 @@ type Profile interface {
 
 // Writer provides interfaces to output profiles
 type Writer interface {
-	Write(profile Profile) error
+	Write(Profile) error
 }
 
 // Config holds configurations for the crawler

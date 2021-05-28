@@ -42,7 +42,8 @@ func crawlInstagram(dryRun bool) {
 	instagramCrawler, err := crawler.NewInstagramCrawler(config)
 	panicOnError(err)
 
-	err = instagramCrawler.Start()
+	scheduler := crawler.NewScheduler(time.Second, 3)
+	err = instagramCrawler.Start(scheduler)
 	panicOnError(err)
 }
 
@@ -57,12 +58,29 @@ func randomWait(min int) {
 	time.Sleep((time.Duration)(rand.Intn(100)+min) * time.Millisecond)
 }
 
-func fetchProfile() crawler.Profile {
+type mockInstagramSession struct{}
+
+func (s *mockInstagramSession) Start(scheduler crawler.Scheduler) {
+	seedProfile := s.fetchProfile()
+	go scheduler.Run(s.fetchRelatedProfiles, seedProfile)
+
+	for profile := range scheduler.Results() {
+		logrus.
+			WithFields(logrus.Fields{"profile": profile.Username()}).
+			Debug(" writing")
+	}
+
+	logrus.
+		WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
+		Debug("Exitting")
+}
+
+func (m *mockInstagramSession) fetchProfile() crawler.Profile {
 	randomWait(500)
 	return crawler.NewInstagramSeed("1")
 }
 
-func fetchRelatedProfiles(fromProfile crawler.Profile) []crawler.Profile {
+func (m *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) []crawler.Profile {
 	logrus.
 		WithFields(logrus.Fields{
 			"profile": fromProfile.Username(),
@@ -82,18 +100,7 @@ func fetchRelatedProfiles(fromProfile crawler.Profile) []crawler.Profile {
 }
 
 func expGoroutines() {
-	s := crawler.NewScheduler(time.Second, 3)
-
-	seedProfile := fetchProfile()
-	go s.Run(fetchRelatedProfiles, seedProfile)
-
-	for profile := range s.Results() {
-		logrus.
-			WithFields(logrus.Fields{"profile": profile.Username()}).
-			Debug(" writing")
-	}
-
-	logrus.
-		WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
-		Debug("Exitting")
+	session := mockInstagramSession{}
+	scheduler := crawler.NewScheduler(time.Second, 3)
+	session.Start(scheduler)
 }

@@ -49,7 +49,7 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 }
 
 // Start begins crawling data on instagram.com
-func (s *instagramSession) Start() error {
+func (s *instagramSession) Start(scheduler Scheduler) error {
 	seedProfile, err := s.fetchProfile()
 
 	if err != nil {
