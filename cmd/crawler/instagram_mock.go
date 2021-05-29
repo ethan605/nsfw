@@ -41,7 +41,7 @@ func (s *mockInstagramSession) Start() error {
 	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
 	for profile := range s.scheduler.Results() {
-		s.Output.Write(profile)
+		_ = s.Output.Write(profile)
 	}
 
 	return nil
