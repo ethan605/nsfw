@@ -3,6 +3,7 @@ package main
 import (
 	"nsfw/internal/crawler"
 	"runtime"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -35,13 +36,13 @@ func crawlInstagram(dryRun bool) {
 	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
-		Output: &crawlerOutput{},
-		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
+		DeferTime:   time.Second / 2,
+		MaxProfiles: 10,
+		Output:      &crawlerOutput{},
+		Seed:        crawler.NewInstagramSeed(seedInstagramUsername),
 	}
 
-	logrus.Debug("invoke")
-
-	instagramCrawler, err := MockInstagramCrawler(config)
+	instagramCrawler, err := crawler.MockInstagramCrawler(config)
 	panicOnError(err)
 
 	err = instagramCrawler.Start()

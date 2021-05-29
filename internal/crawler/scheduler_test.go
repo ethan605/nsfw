@@ -13,7 +13,7 @@ import (
 func TestScheduler(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := NewScheduler(time.Millisecond, 2)
+	scheduler := newScheduler(time.Millisecond, 10)
 	assert.NotEqual(t, nil, scheduler)
 
 	seedProfile := instagramProfile{UserID: "1"}

@@ -2,44 +2,46 @@ package crawler
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Scheduler runs crawling function and manages rate limiting, crawling depth, etc.
 type Scheduler interface {
-	Run(crawler crawlFunc, fromProfile Profile)
+	Run(job crawlJob, profile Profile)
 	Results() <-chan Profile
-}
-
-// NewScheduler creates a Scheduler-compatible instance
-func NewScheduler(deferTime time.Duration, maxDepth int) Scheduler {
-	queue := make(chan Profile)
-
-	return &schedulerStruct{
-		DeferTime: deferTime,
-		MaxDepth:  maxDepth,
-		queue:     queue,
-	}
 }
 
 /* Private stuffs */
 
-type crawlFunc func(Profile) []Profile
+type crawlJob func(Profile) []Profile
 
-type schedulerStruct struct {
-	DeferTime time.Duration
-	MaxDepth  int
-	limiter   <-chan time.Time
-	queue     chan Profile
-	wg        *sync.WaitGroup
+func newScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
+	queue := make(chan Profile)
+	wg := &sync.WaitGroup{}
+	limiter := time.NewTicker(deferTime).C
+
+	return &schedulerStruct{
+		limiter:     limiter,
+		maxProfiles: maxProfiles,
+		queue:       queue,
+		wg:          wg,
+	}
 }
 
-func (s *schedulerStruct) Run(crawler crawlFunc, fromProfile Profile) {
-	s.wg = &sync.WaitGroup{}
-	s.limiter = time.NewTicker(s.DeferTime).C
+type schedulerStruct struct {
+	limiter         <-chan time.Time
+	maxProfiles     uint32
+	profilesCounter uint32
+	queue           chan Profile
+	wg              *sync.WaitGroup
+}
 
+func (s *schedulerStruct) Run(job crawlJob, profile Profile) {
 	s.wg.Add(1)
-	go s.runCrawler(crawler, fromProfile, 0)
+	go s.runJob(job, profile)
 
 	s.wg.Wait()
 	close(s.queue)
@@ -49,18 +51,26 @@ func (s *schedulerStruct) Results() <-chan Profile {
 	return s.queue
 }
 
-func (s *schedulerStruct) runCrawler(crawler crawlFunc, fromProfile Profile, level int) {
+func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	defer s.wg.Done()
-
-	if level >= s.MaxDepth {
-		return
-	}
 
 	<-s.limiter
 
-	for _, profile := range crawler(fromProfile) {
+	atomicCounter := atomic.LoadUint32(&s.profilesCounter)
+
+	if atomicCounter >= s.maxProfiles {
+		logrus.
+			WithField("profile", profile).
+			Info("Max profiles reached, stop crawling")
+		return
+	}
+
+	profiles := job(profile)
+	atomic.AddUint32(&s.profilesCounter, (uint32)(len(profiles)))
+
+	for _, profile := range profiles {
 		s.queue <- profile
 		s.wg.Add(1)
-		go s.runCrawler(crawler, profile, level+1)
+		go s.runJob(job, profile)
 	}
 }

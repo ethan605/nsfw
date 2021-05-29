@@ -1,22 +1,21 @@
-package main
+package crawler
 
 import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"nsfw/internal/crawler"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 // MockInstagramCrawler initializes a mock crawler for instagram.com
-func MockInstagramCrawler(config crawler.Config) (crawler.Crawler, error) {
+func MockInstagramCrawler(config Config) (Crawler, error) {
 	if config.Output == nil {
 		return nil, errors.New("missing required Output config")
 	}
 
-	scheduler := crawler.NewScheduler(time.Second, 2)
+	scheduler := newScheduler(config.DeferTime, config.MaxProfiles)
 
 	return &mockInstagramSession{
 		Config:    config,
@@ -32,8 +31,8 @@ func randomWait(min int) {
 }
 
 type mockInstagramSession struct {
-	crawler.Config
-	scheduler crawler.Scheduler
+	Config
+	scheduler Scheduler
 }
 
 func (s *mockInstagramSession) Start() error {
@@ -47,23 +46,23 @@ func (s *mockInstagramSession) Start() error {
 	return nil
 }
 
-func (s *mockInstagramSession) fetchProfile() crawler.Profile {
+func (s *mockInstagramSession) fetchProfile() Profile {
 	randomWait(500)
-	return crawler.NewInstagramSeed("1")
+	return instagramProfile{UserID: "1"}
 }
 
-func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) []crawler.Profile {
+func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) []Profile {
 	logrus.
 		WithFields(logrus.Fields{
-			"profile": fromProfile.Username(),
+			"profile": fromProfile.ID(),
 			"time":    time.Now().Format("15:04:05.999"),
 		}).
 		Debug("crawling")
 
-	profiles := []crawler.Profile{}
+	profiles := []Profile{}
 
 	for idx := 1; idx <= 3; idx++ {
-		relatedProfile := crawler.NewInstagramSeed(fmt.Sprintf("%s/%d", fromProfile.Username(), idx))
+		relatedProfile := instagramProfile{UserID: fmt.Sprintf("%s/%d", fromProfile.ID(), idx)}
 		profiles = append(profiles, relatedProfile)
 	}
 

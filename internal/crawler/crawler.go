@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -29,6 +30,10 @@ type Writer interface {
 type Config struct {
 	// HTTP client, auto initialise with `resty.New()` if `nil`
 	Client *resty.Client
+	// Amount of time to wait between each request
+	DeferTime time.Duration
+	// Upper limit of total profiles to be crawled
+	MaxProfiles uint32
 	// Output writing stream
 	Output Writer
 	// The initial profile to start crawling with
