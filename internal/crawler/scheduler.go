@@ -29,13 +29,14 @@ type crawlFunc func(Profile) []Profile
 type schedulerStruct struct {
 	DeferTime time.Duration
 	MaxDepth  int
-	limitter  <-chan time.Time
+	limiter   <-chan time.Time
 	queue     chan Profile
 	wg        *sync.WaitGroup
 }
 
 func (s *schedulerStruct) Run(crawler crawlFunc, fromProfile Profile) {
 	s.wg = &sync.WaitGroup{}
+	s.limiter = time.NewTicker(s.DeferTime).C
 
 	s.wg.Add(1)
 	go s.runCrawler(crawler, fromProfile, 0)
@@ -55,7 +56,7 @@ func (s *schedulerStruct) runCrawler(crawler crawlFunc, fromProfile Profile, lev
 		return
 	}
 
-	<-s.limitter
+	<-s.limiter
 
 	for _, profile := range crawler(fromProfile) {
 		s.queue <- profile
