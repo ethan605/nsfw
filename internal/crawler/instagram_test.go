@@ -47,7 +47,7 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		Seed:   seedProfile,
 	})
 
-	err := crawler.Start(nil)
+	err := crawler.Start()
 	// FetchProfile error
 	assert.NotEqual(t, nil, err)
 
@@ -64,7 +64,7 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		profileResponder,
 	)
 
-	err = crawler.Start(nil)
+	err = crawler.Start()
 	// Config.Output error on seedProfile
 	assert.EqualError(t, err, "error writing to output stream")
 
@@ -75,7 +75,7 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		profileResponder,
 	)
 
-	err = crawler.Start(nil)
+	err = crawler.Start()
 	// FetchRelatedProfiles error
 	assert.NotEqual(t, nil, err)
 
@@ -86,7 +86,7 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		relatedProfilesResponder,
 	)
 
-	err = crawler.Start(nil)
+	err = crawler.Start()
 	// Config.Output error on related profiles
 	assert.EqualError(t, err, "error writing to output stream")
 }
@@ -140,7 +140,7 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 		Seed:   seed,
 	})
 
-	err := crawler.Start(nil)
+	err := crawler.Start()
 	assert.Equal(t, nil, err)
 
 	assert.Equal(t, 5, len(output.WrittenProfiles))

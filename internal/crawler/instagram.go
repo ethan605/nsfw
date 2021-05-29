@@ -49,14 +49,14 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 }
 
 // Start begins crawling data on instagram.com
-func (s *instagramSession) Start(scheduler Scheduler) error {
+func (s *instagramSession) Start() error {
 	seedProfile, err := s.fetchProfile()
 
 	if err != nil {
 		return err
 	}
 
-	err = s.Config.Output.Write(seedProfile)
+	err = s.Output.Write(seedProfile)
 
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func (s *instagramSession) Start(scheduler Scheduler) error {
 	}
 
 	for _, profile := range relatedProfiles {
-		err = s.Config.Output.Write(profile)
+		err = s.Output.Write(profile)
 
 		if err != nil {
 			return err
@@ -84,7 +84,7 @@ func (s *instagramSession) Start(scheduler Scheduler) error {
 var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
-	Config Config
+	Config
 
 	// Cookie
 	SessionID string
@@ -101,8 +101,8 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 		}
 	}
 
-	resp, err := s.Config.Client.R().
-		SetPathParam("username", s.Config.Seed.Username()).
+	resp, err := s.Client.R().
+		SetPathParam("username", s.Seed.Username()).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
@@ -159,7 +159,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}
 	}
 
-	resp, err := s.Config.Client.R().
+	resp, err := s.Client.R().
 		SetQueryParams(map[string]string{
 			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),

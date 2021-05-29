@@ -8,7 +8,7 @@ import (
 
 // Crawler represents a crawler instance
 type Crawler interface {
-	Start(Scheduler) error
+	Start() error
 }
 
 // Profile provides information of a user

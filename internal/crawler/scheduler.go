@@ -14,12 +14,11 @@ type Scheduler interface {
 // NewScheduler creates a Scheduler-compatible instance
 func NewScheduler(deferTime time.Duration, maxDepth int) Scheduler {
 	queue := make(chan Profile)
-	limitter := time.NewTicker(deferTime).C
 
 	return &schedulerStruct{
-		limitter: limitter,
-		maxDepth: maxDepth,
-		queue:    queue,
+		DeferTime: deferTime,
+		MaxDepth:  maxDepth,
+		queue:     queue,
 	}
 }
 
@@ -28,10 +27,11 @@ func NewScheduler(deferTime time.Duration, maxDepth int) Scheduler {
 type crawlFunc func(Profile) []Profile
 
 type schedulerStruct struct {
-	limitter <-chan time.Time
-	maxDepth int
-	queue    chan Profile
-	wg       *sync.WaitGroup
+	DeferTime time.Duration
+	MaxDepth  int
+	limitter  <-chan time.Time
+	queue     chan Profile
+	wg        *sync.WaitGroup
 }
 
 func (s *schedulerStruct) Run(crawler crawlFunc, fromProfile Profile) {
@@ -51,7 +51,7 @@ func (s *schedulerStruct) Results() <-chan Profile {
 func (s *schedulerStruct) runCrawler(crawler crawlFunc, fromProfile Profile, level int) {
 	defer s.wg.Done()
 
-	if level >= s.maxDepth {
+	if level >= s.MaxDepth {
 		return
 	}
 
