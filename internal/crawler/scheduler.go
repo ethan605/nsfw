@@ -16,7 +16,7 @@ type Scheduler interface {
 
 /* Private stuffs */
 
-type crawlJob func(Profile) []Profile
+type crawlJob func(Profile) ([]Profile, error)
 
 func newScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
 	queue := make(chan Profile)
@@ -65,7 +65,12 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 		return
 	}
 
-	profiles := job(profile)
+	profiles, err := job(profile)
+
+	if err != nil {
+		return
+	}
+
 	atomic.AddUint32(&s.profilesCounter, (uint32)(len(profiles)))
 
 	for _, profile := range profiles {

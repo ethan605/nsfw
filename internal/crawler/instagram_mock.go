@@ -51,13 +51,17 @@ func (s *mockInstagramSession) fetchProfile() Profile {
 	return instagramProfile{UserID: "1"}
 }
 
-func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) []Profile {
+func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
 	logrus.
 		WithFields(logrus.Fields{
 			"profile": fromProfile.ID(),
 			"time":    time.Now().Format("15:04:05.999"),
 		}).
 		Debug("crawling")
+
+	if fromProfile.ID() == "-1" {
+		return nil, errors.New("fake error")
+	}
 
 	profiles := []Profile{}
 
@@ -66,5 +70,5 @@ func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) []Profi
 		profiles = append(profiles, relatedProfile)
 	}
 
-	return profiles
+	return profiles, nil
 }

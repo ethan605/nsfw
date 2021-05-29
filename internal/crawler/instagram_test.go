@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewInstagramSeed(t *testing.T) {
+	logrus.Info("invoke")
 	profile := NewInstagramSeed(fakeUsername)
 	assert.Equal(t, "", profile.AvatarURL())
 	assert.Equal(t, "", profile.DisplayName())
@@ -29,8 +32,9 @@ func TestNewInstagramCrawler(t *testing.T) {
 	assert.EqualError(t, err, "missing required Output config")
 
 	_, err = NewInstagramCrawler(Config{
-		Seed:   instagramProfile{},
-		Output: &mockWriter{},
+		DeferTime: time.Millisecond,
+		Seed:      instagramProfile{},
+		Output:    &mockWriter{},
 	})
 	assert.Equal(t, nil, err)
 }
@@ -42,9 +46,11 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 
 	seedProfile := instagramProfile{IgName: fakeUsername}
 	crawler, _ := NewInstagramCrawler(Config{
-		Client: client,
-		Output: &mockWriter{},
-		Seed:   seedProfile,
+		Client:      client,
+		DeferTime:   time.Millisecond,
+		MaxProfiles: 3,
+		Output:      &mockWriter{},
+		Seed:        seedProfile,
 	})
 
 	err := crawler.Start()
@@ -74,10 +80,6 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		fmt.Sprintf("/%s/?__a=1", seedProfile.Username()),
 		profileResponder,
 	)
-
-	err = crawler.Start()
-	// FetchRelatedProfiles error
-	assert.NotEqual(t, nil, err)
 
 	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, generateRelatedProfilesFixture("2345", "-1"))
 	httpmock.RegisterResponder(
@@ -135,9 +137,11 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 	output := &mockWriter{}
 
 	crawler, _ := NewInstagramCrawler(Config{
-		Client: client,
-		Output: output,
-		Seed:   seed,
+		Client:      client,
+		DeferTime:   time.Millisecond,
+		MaxProfiles: 4,
+		Output:      output,
+		Seed:        seed,
 	})
 
 	err := crawler.Start()

@@ -1,16 +1,41 @@
 package crawler
 
 import (
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"runtime"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestScheduler(t *testing.T) {
+func init() {
+	logrus.SetOutput(ioutil.Discard)
+}
+
+func TestSchedulerFailure(t *testing.T) {
+	initialGoRoutines := runtime.NumGoroutine()
+
+	scheduler := newScheduler(time.Millisecond, 10)
+
+	seedProfile := instagramProfile{UserID: "-1"}
+	go scheduler.Run(mockFetchProfiles, seedProfile)
+
+	profileIDs := []string{}
+
+	for profile := range scheduler.Results() {
+		profileIDs = append(profileIDs, profile.ID())
+	}
+
+	assert.Equal(t, 0, len(profileIDs))
+	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
+}
+
+func TestSchedulerSuccess(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
 	scheduler := newScheduler(time.Millisecond, 10)
@@ -45,7 +70,11 @@ func TestScheduler(t *testing.T) {
 
 /* Private stuffs */
 
-func mockFetchProfiles(fromProfile Profile) []Profile {
+func mockFetchProfiles(fromProfile Profile) ([]Profile, error) {
+	if fromProfile.ID() == "-1" {
+		return nil, errors.New("fake error")
+	}
+
 	profiles := []Profile{}
 
 	for idx := 1; idx <= 3; idx++ {
@@ -55,5 +84,5 @@ func mockFetchProfiles(fromProfile Profile) []Profile {
 		profiles = append(profiles, relatedProfile)
 	}
 
-	return profiles
+	return profiles, nil
 }

@@ -42,8 +42,11 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 		return nil, errors.New("missing required Output config")
 	}
 
+	scheduler := newScheduler(config.DeferTime, config.MaxProfiles)
+
 	return &instagramSession{
 		Config:    config,
+		Scheduler: scheduler,
 		SessionID: sessionID,
 	}, nil
 }
@@ -62,16 +65,10 @@ func (s *instagramSession) Start() error {
 		return err
 	}
 
-	relatedProfiles, err := s.fetchRelatedProfiles(seedProfile)
+	go s.Scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
-	if err != nil {
-		return err
-	}
-
-	for _, profile := range relatedProfiles {
-		err = s.Output.Write(profile)
-
-		if err != nil {
+	for profile := range s.Scheduler.Results() {
+		if err = s.Output.Write(profile); err != nil {
 			return err
 		}
 	}
@@ -85,6 +82,7 @@ var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
 	Config
+	Scheduler Scheduler
 
 	// Cookie
 	SessionID string
