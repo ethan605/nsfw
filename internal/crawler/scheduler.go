@@ -21,10 +21,12 @@ type crawlJob func(Profile) ([]Profile, error)
 // NewScheduler creates a scheduler, with an amount of time to wait between each request
 // and an upper limit of total profiles to be crawled
 func NewScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
+	cleanUpSignal := make(chan struct{})
 	profilesQueue := make(chan Profile)
 	wg := &sync.WaitGroup{}
 
 	return &schedulerStruct{
+		cleanUpSignal: cleanUpSignal,
 		deferTime:     deferTime,
 		maxProfiles:   maxProfiles,
 		profilesQueue: profilesQueue,
@@ -33,9 +35,13 @@ func NewScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
 }
 
 type schedulerStruct struct {
-	deferTime       time.Duration
+	// Received configurations
+	deferTime   time.Duration
+	maxProfiles uint32
+
+	// Signal to clean-up running goroutines when `wg.Wait()` reached
+	cleanUpSignal   chan struct{}
 	limiter         <-chan struct{}
-	maxProfiles     uint32
 	profilesCounter uint32
 	profilesQueue   chan Profile
 	wg              *sync.WaitGroup
@@ -43,10 +49,16 @@ type schedulerStruct struct {
 
 func (s *schedulerStruct) Run(job crawlJob, profile Profile) {
 	s.limiter = s.newLimiter()
+
 	s.wg.Add(1)
 	go s.runJob(job, profile)
-
 	s.wg.Wait()
+
+	// To clean-up all running goroutines that won't automatically stop
+	close(s.cleanUpSignal)
+	time.Sleep(s.deferTime)
+
+	// Finally close profilesQueue to enable iterating `Results()` via `range`
 	close(s.profilesQueue)
 }
 
@@ -96,15 +108,22 @@ func (s *schedulerStruct) newLimiter() <-chan struct{} {
 		ticker := time.NewTicker(s.deferTime).C
 
 		for {
-			<-ticker
-			atomicCounter := atomic.LoadUint32(&s.profilesCounter)
-
-			if atomicCounter >= s.maxProfiles {
-				close(limiter)
+			select {
+			// Edge case: when all jobs failed without exceeding s.maxProfiles,
+			// we need to manually stop this goroutine. Otherwise it will leak.
+			case <-s.cleanUpSignal:
 				return
-			}
 
-			limiter <- struct{}{}
+			case <-ticker:
+				atomicCounter := atomic.LoadUint32(&s.profilesCounter)
+
+				if atomicCounter >= s.maxProfiles {
+					close(limiter)
+					return
+				}
+
+				limiter <- struct{}{}
+			}
 		}
 	}()
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"nsfw/internal/crawler"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -59,7 +60,7 @@ func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile)
 		}).
 		Debug("crawling")
 
-	if fromProfile.Username() == "-1" {
+	if strings.HasPrefix(fromProfile.Username(), "-1/") {
 		return nil, errors.New("fake error")
 	}
 
