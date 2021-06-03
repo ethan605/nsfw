@@ -8,7 +8,7 @@ import (
 
 // Crawler represents a crawler instance
 type Crawler interface {
-	Start() error
+	Run() error
 }
 
 // Profile provides information of a user
@@ -29,8 +29,8 @@ type Writer interface {
 type Config struct {
 	// HTTP client, auto initialise with `resty.New()` if `nil`
 	Client *resty.Client
-	// Output writing stream
-	Output Writer
+	// Writer writing stream
+	Writer Writer
 	// The initial profile to start crawling with
 	Seed Profile
 }

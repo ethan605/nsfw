@@ -37,8 +37,8 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 		return nil, errors.New("missing required Seed config")
 	}
 
-	if config.Output == nil {
-		return nil, errors.New("missing required Output config")
+	if config.Writer == nil {
+		return nil, errors.New("missing required Writer config")
 	}
 
 	return &instagramSession{
@@ -48,15 +48,15 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	}, nil
 }
 
-// Start begins crawling data on instagram.com
-func (s *instagramSession) Start() error {
+// Run begins crawling data on instagram.com
+func (s *instagramSession) Run() error {
 	seedProfile, err := s.fetchProfile()
 
 	if err != nil {
 		return err
 	}
 
-	err = s.config.Output.Write(seedProfile)
+	err = s.config.Writer.Write(seedProfile)
 
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (s *instagramSession) Start() error {
 	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
 	for profile := range s.scheduler.Results() {
-		if err = s.config.Output.Write(profile); err != nil {
+		if err = s.config.Writer.Write(profile); err != nil {
 			return err
 		}
 	}

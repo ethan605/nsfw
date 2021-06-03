@@ -11,8 +11,8 @@ import (
 )
 
 func mockInstagramCrawler(config crawler.Config, scheduler crawler.Scheduler) (crawler.Crawler, error) {
-	if config.Output == nil {
-		return nil, errors.New("missing required Output config")
+	if config.Writer == nil {
+		return nil, errors.New("missing required Writer config")
 	}
 
 	return &mockInstagramSession{
@@ -33,14 +33,14 @@ type mockInstagramSession struct {
 	scheduler crawler.Scheduler
 }
 
-func (s *mockInstagramSession) Start() error {
+func (s *mockInstagramSession) Run() error {
 	seedProfile := s.fetchProfile()
-	_ = s.config.Output.Write(seedProfile)
+	_ = s.config.Writer.Write(seedProfile)
 
 	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
 	for profile := range s.scheduler.Results() {
-		_ = s.config.Output.Write(profile)
+		_ = s.config.Writer.Write(profile)
 	}
 
 	return nil

@@ -29,17 +29,17 @@ func TestNewInstagramCrawler(t *testing.T) {
 	assert.EqualError(t, err, "missing required Seed config")
 
 	_, err = NewInstagramCrawler(Config{Seed: instagramProfile{}}, scheduler)
-	assert.EqualError(t, err, "missing required Output config")
+	assert.EqualError(t, err, "missing required Writer config")
 
 	config := Config{
 		Seed:   instagramProfile{},
-		Output: &mockWriter{},
+		Writer: &mockWriter{},
 	}
 	_, err = NewInstagramCrawler(config, scheduler)
 	assert.Equal(t, nil, err)
 }
 
-func TestInstagramCrawlerStartFailure(t *testing.T) {
+func TestInstagramCrawlerRunFailure(t *testing.T) {
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
 	defer httpmock.DeactivateAndReset()
@@ -47,14 +47,14 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	seedProfile := instagramProfile{IgName: fakeUsername}
 	config := Config{
 		Client: client,
-		Output: &mockWriter{},
+		Writer: &mockWriter{},
 		Seed:   seedProfile,
 	}
 	scheduler := NewScheduler(time.Nanosecond, 3)
 	crawler, _ := NewInstagramCrawler(config, scheduler)
 
-	err := crawler.Start()
 	// FetchProfile error
+	err := crawler.Run()
 	assert.NotEqual(t, nil, err)
 
 	profileResponder, _ := httpmock.NewJsonResponder(200, object{
@@ -70,8 +70,8 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		profileResponder,
 	)
 
-	err = crawler.Start()
-	// Config.Output error on seedProfile
+	// Config.Writer error on seedProfile
+	err = crawler.Run()
 	assert.EqualError(t, err, "error writing to output stream")
 
 	profileResponder, _ = httpmock.NewJsonResponder(200, profileFixture)
@@ -88,12 +88,12 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 		relatedProfilesResponder,
 	)
 
-	err = crawler.Start()
-	// Config.Output error on related profiles
+	// Config.Writer error on related profiles
+	err = crawler.Run()
 	assert.EqualError(t, err, "error writing to output stream")
 }
 
-func TestInstagramCrawlerStartSuccess(t *testing.T) {
+func TestInstagramCrawlerRunSuccess(t *testing.T) {
 	// Setup HTTP requests mock
 	client := resty.New()
 	httpmock.ActivateNonDefault(client.GetClient())
@@ -138,13 +138,13 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 
 	config := Config{
 		Client: client,
-		Output: output,
+		Writer: output,
 		Seed:   seed,
 	}
 	scheduler := NewScheduler(time.Millisecond, 4)
 	crawler, _ := NewInstagramCrawler(config, scheduler)
 
-	err := crawler.Start()
+	err := crawler.Run()
 	assert.Equal(t, nil, err)
 
 	assert.Equal(t, 5, len(output.WrittenProfiles))

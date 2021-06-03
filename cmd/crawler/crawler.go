@@ -2,6 +2,7 @@ package main
 
 import (
 	"nsfw/internal/crawler"
+	"os"
 	"runtime"
 	"time"
 
@@ -10,13 +11,17 @@ import (
 
 func init() {
 	logrus.SetLevel(logrus.DebugLevel)
+
+	if os.Getenv("ENV") == "production" {
+		logrus.SetFormatter(&logrus.JSONFormatter{})
+	}
 }
 
 func main() {
 	defer func() {
 		logrus.
 			WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
-			Info("Exitting")
+			Info("Gracefully shutting down")
 	}()
 
 	crawlInstagram(true)
@@ -24,12 +29,12 @@ func main() {
 
 /* Private stuffs */
 
-type crawlerOutput struct{}
+type crawlerWriter struct{}
 
-func (o *crawlerOutput) Write(profile crawler.Profile) error {
+func (o *crawlerWriter) Write(profile crawler.Profile) error {
 	logrus.
 		WithFields(logrus.Fields{"profile": profile}).
-		Debug(" writing")
+		Info("  writing")
 	return nil
 }
 
@@ -38,7 +43,7 @@ func crawlInstagram(mock bool) {
 	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
-		Output: &crawlerOutput{},
+		Writer: &crawlerWriter{},
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
 
@@ -52,7 +57,7 @@ func crawlInstagram(mock bool) {
 
 	panicOnError(err)
 
-	err = instagramCrawler.Start()
+	err = instagramCrawler.Run()
 	panicOnError(err)
 }
 
