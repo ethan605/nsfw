@@ -27,6 +27,16 @@ func main() {
 	crawlInstagram(true)
 }
 
+/* func main() {
+	log.Println("before: goroutines =", runtime.NumGoroutine())
+	client := resty.New()
+	resp, _ := client.R().
+		Get("https://http2.golang.org/reqinfo")
+
+	log.Println("result", string(resp.Body()))
+	log.Println("after: goroutines =", runtime.NumGoroutine())
+} */
+
 /* Private stuffs */
 
 type crawlerWriter struct{}
@@ -49,8 +59,8 @@ func crawlInstagram(mock bool) {
 
 	schedulerConfig := crawler.SchedulerConfig{
 		DeferTime:   time.Second,
-		MaxProfiles: 100,
-		MaxWorkers:  3,
+		MaxProfiles: 10,
+		MaxWorkers:  1,
 	}
 	scheduler := crawler.NewScheduler(schedulerConfig)
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
@@ -58,8 +68,8 @@ func crawlInstagram(mock bool) {
 	if mock {
 		schedulerConfig := crawler.SchedulerConfig{
 			DeferTime:   time.Second / 2,
-			MaxProfiles: 20,
-			MaxWorkers:  3,
+			MaxProfiles: 10,
+			MaxWorkers:  1,
 		}
 		scheduler := crawler.NewScheduler(schedulerConfig)
 		instagramCrawler, err = mockInstagramCrawler(config, scheduler)

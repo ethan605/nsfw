@@ -112,9 +112,9 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	}
 
 	numProfiles := len(profiles)
+	s.wg.Add(numProfiles)
 	atomic.AddUint32(&s.profilesCounter, uint32(numProfiles))
 
-	s.wg.Add(numProfiles)
 	for _, profile := range profiles {
 		s.profilesQueue <- profile
 		go s.runJob(job, profile)
