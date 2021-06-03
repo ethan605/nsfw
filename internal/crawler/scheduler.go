@@ -14,21 +14,44 @@ type Scheduler interface {
 	Results() <-chan Profile
 }
 
+type SchedulerConfig struct {
+	DeferTime   time.Duration
+	MaxProfiles uint32
+	MaxWorkers  int
+}
+
 /* Private stuffs */
 
 type crawlJob func(Profile) ([]Profile, error)
 
 // NewScheduler creates a scheduler, with an amount of time to wait between each request
 // and an upper limit of total profiles to be crawled
-func NewScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
+func NewScheduler(config SchedulerConfig) Scheduler {
 	cleanUpSignal := make(chan struct{})
 	profilesQueue := make(chan Profile)
 	wg := &sync.WaitGroup{}
 
+	deferTime := config.DeferTime
+
+	if deferTime == 0 {
+		deferTime = time.Nanosecond
+	}
+
+	maxWorkers := config.MaxWorkers
+
+	if maxWorkers == 0 {
+		maxWorkers = 1
+	}
+
+	logrus.
+		WithFields(logrus.Fields{"config": config, "maxProfiles": uint32(config.MaxProfiles)}).
+		Warn("invoke")
+
 	return &schedulerStruct{
 		cleanUpSignal: cleanUpSignal,
 		deferTime:     deferTime,
-		maxProfiles:   maxProfiles,
+		maxProfiles:   config.MaxProfiles,
+		maxWorkers:    maxWorkers,
 		profilesQueue: profilesQueue,
 		wg:            wg,
 	}
@@ -38,6 +61,7 @@ type schedulerStruct struct {
 	// Received configurations
 	deferTime   time.Duration
 	maxProfiles uint32
+	maxWorkers  int
 
 	// Signal to clean-up running goroutines when `wg.Wait()` reached
 	cleanUpSignal   chan struct{}
@@ -123,6 +147,9 @@ func (s *schedulerStruct) newLimiter() <-chan struct{} {
 				}
 
 				limiter <- struct{}{}
+				/* for worker := 0; worker < s.maxWorkers; worker++ {
+					limiter <- struct{}{}
+				} */
 			}
 		}
 	}()

@@ -7,20 +7,19 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func init() {
-	logrus.SetLevel(logrus.FatalLevel)
+	logrus.SetLevel(logrus.DebugLevel)
 }
 
 func TestSchedulerFailure(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := NewScheduler(time.Millisecond, 10)
+	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 10})
 
 	seedProfile := instagramProfile{UserID: "-1"}
 	go scheduler.Run(mockFetchProfiles, seedProfile)
@@ -38,7 +37,7 @@ func TestSchedulerFailure(t *testing.T) {
 func TestSchedulerSuccess(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := NewScheduler(time.Millisecond, 10)
+	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 10})
 	assert.NotEqual(t, nil, scheduler)
 
 	seedProfile := instagramProfile{UserID: "1"}

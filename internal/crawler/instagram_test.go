@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
@@ -23,7 +22,7 @@ func TestNewInstagramSeed(t *testing.T) {
 }
 
 func TestNewInstagramCrawler(t *testing.T) {
-	scheduler := NewScheduler(time.Nanosecond, 0)
+	scheduler := NewScheduler(SchedulerConfig{})
 
 	_, err := NewInstagramCrawler(Config{}, scheduler)
 	assert.EqualError(t, err, "missing required Seed config")
@@ -50,7 +49,7 @@ func TestInstagramCrawlerRunFailure(t *testing.T) {
 		Writer: &mockWriter{},
 		Seed:   seedProfile,
 	}
-	scheduler := NewScheduler(time.Nanosecond, 3)
+	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 3})
 	crawler, _ := NewInstagramCrawler(config, scheduler)
 
 	// FetchProfile error
@@ -141,7 +140,7 @@ func TestInstagramCrawlerRunSuccess(t *testing.T) {
 		Writer: output,
 		Seed:   seed,
 	}
-	scheduler := NewScheduler(time.Millisecond, 4)
+	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 4})
 	crawler, _ := NewInstagramCrawler(config, scheduler)
 
 	err := crawler.Run()

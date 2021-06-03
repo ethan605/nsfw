@@ -25,6 +25,7 @@ func main() {
 	}()
 
 	crawlInstagram(true)
+	// testConcurrency()
 }
 
 /* Private stuffs */
@@ -47,11 +48,21 @@ func crawlInstagram(mock bool) {
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
 
-	scheduler := crawler.NewScheduler(time.Second, 100)
+	schedulerConfig := crawler.SchedulerConfig{
+		DeferTime:   time.Second,
+		MaxProfiles: 100,
+		MaxWorkers:  3,
+	}
+	scheduler := crawler.NewScheduler(schedulerConfig)
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
 
 	if mock {
-		scheduler := crawler.NewScheduler(time.Second/2, 10)
+		schedulerConfig := crawler.SchedulerConfig{
+			DeferTime:   time.Second / 2,
+			MaxProfiles: 10,
+			MaxWorkers:  1,
+		}
+		scheduler := crawler.NewScheduler(schedulerConfig)
 		instagramCrawler, err = mockInstagramCrawler(config, scheduler)
 	}
 
@@ -66,3 +77,47 @@ func panicOnError(err error) {
 		logrus.Panicln(err)
 	}
 }
+
+/* func testConcurrency() {
+	maxJobs := 5
+	queue := make(chan int, maxJobs)
+	limiter := make(chan struct{}, maxJobs)
+
+	producer := func() {
+		idx := 0
+
+		for {
+			time.Sleep(100 * time.Millisecond)
+			queue <- idx
+			idx++
+
+			if idx >= 20 {
+				close(queue)
+				return
+			}
+		}
+	}
+
+	go producer()
+
+	wg := &sync.WaitGroup{}
+
+	for num := range queue {
+		limiter <- struct{}{}
+
+		wg.Add(1)
+		go func(num int) {
+			defer func() {
+				<-limiter
+				wg.Done()
+			}()
+
+			time.Sleep(time.Second)
+			logrus.
+				WithFields(logrus.Fields{"num": num}).
+				Info("queue")
+		}(num)
+	}
+
+	wg.Wait()
+} */
