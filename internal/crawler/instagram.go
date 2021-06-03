@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
@@ -26,7 +25,7 @@ func NewInstagramSeed(username string) Profile {
 }
 
 // NewInstagramCrawler initializes a crawler for instagram.com
-func NewInstagramCrawler(config Config) (Crawler, error) {
+func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
 	const sessionID = "48056993126:Oy8vcmxDfwaQQ3:14"
 
@@ -42,12 +41,10 @@ func NewInstagramCrawler(config Config) (Crawler, error) {
 		return nil, errors.New("missing required Output config")
 	}
 
-	scheduler := newScheduler(config.DeferTime, config.MaxProfiles)
-
 	return &instagramSession{
-		Config:    config,
-		Scheduler: scheduler,
-		SessionID: sessionID,
+		config:    config,
+		scheduler: scheduler,
+		sessionID: sessionID,
 	}, nil
 }
 
@@ -59,16 +56,16 @@ func (s *instagramSession) Start() error {
 		return err
 	}
 
-	err = s.Output.Write(seedProfile)
+	err = s.config.Output.Write(seedProfile)
 
 	if err != nil {
 		return err
 	}
 
-	go s.Scheduler.Run(s.fetchRelatedProfiles, seedProfile)
+	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
-	for profile := range s.Scheduler.Results() {
-		if err = s.Output.Write(profile); err != nil {
+	for profile := range s.scheduler.Results() {
+		if err = s.config.Output.Write(profile); err != nil {
 			return err
 		}
 	}
@@ -81,11 +78,11 @@ func (s *instagramSession) Start() error {
 var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
-	Config
-	Scheduler Scheduler
+	config    Config
+	scheduler Scheduler
 
 	// Cookie
-	SessionID string
+	sessionID string
 }
 
 func (s *instagramSession) baseURL() string {
@@ -99,15 +96,15 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 		}
 	}
 
-	resp, err := s.Client.R().
-		SetPathParam("username", s.Seed.Username()).
+	resp, err := s.config.Client.R().
+		SetPathParam("username", s.config.Seed.Username()).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
 			Domain: ".instagram.com",
 			Path:   "/",
 			Name:   "sessionid",
-			Value:  s.SessionID,
+			Value:  s.sessionID,
 		}).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/{username}/")
@@ -157,7 +154,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}
 	}
 
-	resp, err := s.Client.R().
+	resp, err := s.config.Client.R().
 		SetQueryParams(map[string]string{
 			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),
@@ -165,7 +162,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
 			Name:  "sessionid",
-			Value: s.SessionID,
+			Value: s.sessionID,
 		}).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/graphql/query")
@@ -175,7 +172,6 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 	}
 
 	if resp.StatusCode() != 200 {
-		log.Println("Body", string(resp.Body()))
 		return nil, errors.New("fetch related profiles error")
 	}
 

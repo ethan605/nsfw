@@ -3,7 +3,6 @@ package crawler
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"runtime"
 	"sort"
 	"testing"
@@ -14,13 +13,13 @@ import (
 )
 
 func init() {
-	logrus.SetOutput(ioutil.Discard)
+	logrus.SetLevel(logrus.FatalLevel)
 }
 
 func TestSchedulerFailure(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := newScheduler(time.Millisecond, 10)
+	scheduler := NewScheduler(time.Millisecond, 10)
 
 	seedProfile := instagramProfile{UserID: "-1"}
 	go scheduler.Run(mockFetchProfiles, seedProfile)
@@ -38,7 +37,7 @@ func TestSchedulerFailure(t *testing.T) {
 func TestSchedulerSuccess(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := newScheduler(time.Millisecond, 10)
+	scheduler := NewScheduler(time.Millisecond, 10)
 	assert.NotEqual(t, nil, scheduler)
 
 	seedProfile := instagramProfile{UserID: "1"}

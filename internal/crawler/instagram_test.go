@@ -23,17 +23,19 @@ func TestNewInstagramSeed(t *testing.T) {
 }
 
 func TestNewInstagramCrawler(t *testing.T) {
-	_, err := NewInstagramCrawler(Config{})
+	scheduler := NewScheduler(time.Nanosecond, 0)
+
+	_, err := NewInstagramCrawler(Config{}, scheduler)
 	assert.EqualError(t, err, "missing required Seed config")
 
-	_, err = NewInstagramCrawler(Config{Seed: instagramProfile{}})
+	_, err = NewInstagramCrawler(Config{Seed: instagramProfile{}}, scheduler)
 	assert.EqualError(t, err, "missing required Output config")
 
-	_, err = NewInstagramCrawler(Config{
-		DeferTime: time.Millisecond,
-		Seed:      instagramProfile{},
-		Output:    &mockWriter{},
-	})
+	config := Config{
+		Seed:   instagramProfile{},
+		Output: &mockWriter{},
+	}
+	_, err = NewInstagramCrawler(config, scheduler)
 	assert.Equal(t, nil, err)
 }
 
@@ -43,13 +45,13 @@ func TestInstagramCrawlerStartFailure(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	seedProfile := instagramProfile{IgName: fakeUsername}
-	crawler, _ := NewInstagramCrawler(Config{
-		Client:      client,
-		DeferTime:   time.Millisecond,
-		MaxProfiles: 3,
-		Output:      &mockWriter{},
-		Seed:        seedProfile,
-	})
+	config := Config{
+		Client: client,
+		Output: &mockWriter{},
+		Seed:   seedProfile,
+	}
+	scheduler := NewScheduler(time.Nanosecond, 3)
+	crawler, _ := NewInstagramCrawler(config, scheduler)
 
 	err := crawler.Start()
 	// FetchProfile error
@@ -134,13 +136,13 @@ func TestInstagramCrawlerStartSuccess(t *testing.T) {
 	// Setup output mock
 	output := &mockWriter{}
 
-	crawler, _ := NewInstagramCrawler(Config{
-		Client:      client,
-		DeferTime:   time.Millisecond,
-		MaxProfiles: 4,
-		Output:      output,
-		Seed:        seed,
-	})
+	config := Config{
+		Client: client,
+		Output: output,
+		Seed:   seed,
+	}
+	scheduler := NewScheduler(time.Millisecond, 4)
+	crawler, _ := NewInstagramCrawler(config, scheduler)
 
 	err := crawler.Start()
 	assert.Equal(t, nil, err)
@@ -159,7 +161,7 @@ func TestFetchProfileFailure(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Config: Config{
+		config: Config{
 			Client: client,
 			Seed:   instagramProfile{},
 		},
@@ -169,7 +171,7 @@ func TestFetchProfileFailure(t *testing.T) {
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Config: Config{
+		config: Config{
 			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",
@@ -192,7 +194,7 @@ func TestFetchRelatedProfilesFailure(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		Config: Config{
+		config: Config{
 			Client: client,
 		},
 	}
@@ -201,7 +203,7 @@ func TestFetchRelatedProfilesFailure(t *testing.T) {
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
-		Config: Config{
+		config: Config{
 			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",

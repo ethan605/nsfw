@@ -1,24 +1,22 @@
-package crawler
+package main
 
 import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"nsfw/internal/crawler"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-// MockInstagramCrawler initializes a mock crawler for instagram.com
-func MockInstagramCrawler(config Config) (Crawler, error) {
+func mockInstagramCrawler(config crawler.Config, scheduler crawler.Scheduler) (crawler.Crawler, error) {
 	if config.Output == nil {
 		return nil, errors.New("missing required Output config")
 	}
 
-	scheduler := newScheduler(config.DeferTime, config.MaxProfiles)
-
 	return &mockInstagramSession{
-		Config:    config,
+		config:    config,
 		scheduler: scheduler,
 	}, nil
 }
@@ -31,8 +29,8 @@ func randomWait(min int) {
 }
 
 type mockInstagramSession struct {
-	Config
-	scheduler Scheduler
+	config    crawler.Config
+	scheduler crawler.Scheduler
 }
 
 func (s *mockInstagramSession) Start() error {
@@ -40,21 +38,21 @@ func (s *mockInstagramSession) Start() error {
 	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
 	for profile := range s.scheduler.Results() {
-		_ = s.Output.Write(profile)
+		_ = s.config.Output.Write(profile)
 	}
 
 	return nil
 }
 
-func (s *mockInstagramSession) fetchProfile() Profile {
+func (s *mockInstagramSession) fetchProfile() crawler.Profile {
 	randomWait(500)
-	return instagramProfile{UserID: "1"}
+	return crawler.NewInstagramSeed("1")
 }
 
-func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
+func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) ([]crawler.Profile, error) {
 	logrus.
 		WithFields(logrus.Fields{
-			"profile": fromProfile.ID(),
+			"profile": fromProfile.Username(),
 			"time":    time.Now().Format("15:04:05.999"),
 		}).
 		Debug("crawling")
@@ -63,10 +61,10 @@ func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Prof
 		return nil, errors.New("fake error")
 	}
 
-	profiles := []Profile{}
+	profiles := []crawler.Profile{}
 
 	for idx := 1; idx <= 3; idx++ {
-		relatedProfile := instagramProfile{UserID: fmt.Sprintf("%s/%d", fromProfile.ID(), idx)}
+		relatedProfile := crawler.NewInstagramSeed(fmt.Sprintf("%s/%d", fromProfile.Username(), idx))
 		profiles = append(profiles, relatedProfile)
 	}
 

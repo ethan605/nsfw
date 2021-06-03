@@ -18,7 +18,9 @@ type Scheduler interface {
 
 type crawlJob func(Profile) ([]Profile, error)
 
-func newScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
+// NewScheduler creates a scheduler, with an amount of time to wait between each request
+// and an upper limit of total profiles to be crawled
+func NewScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
 	queue := make(chan Profile)
 	wg := &sync.WaitGroup{}
 	limiter := time.NewTicker(deferTime).C
@@ -68,6 +70,12 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	profiles, err := job(profile)
 
 	if err != nil {
+		logrus.
+			WithFields(logrus.Fields{
+				"profile": profile,
+				"error":   err,
+			}).
+			Error("Crawling profile error")
 		return
 	}
 

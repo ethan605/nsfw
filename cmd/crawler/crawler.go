@@ -36,13 +36,12 @@ func crawlInstagram(dryRun bool) {
 	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
-		DeferTime:   time.Second / 2,
-		MaxProfiles: 10,
-		Output:      &crawlerOutput{},
-		Seed:        crawler.NewInstagramSeed(seedInstagramUsername),
+		Output: &crawlerOutput{},
+		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
+	scheduler := crawler.NewScheduler(time.Second/2, 10)
 
-	instagramCrawler, err := crawler.MockInstagramCrawler(config)
+	instagramCrawler, err := mockInstagramCrawler(config, scheduler)
 	panicOnError(err)
 
 	err = instagramCrawler.Start()
