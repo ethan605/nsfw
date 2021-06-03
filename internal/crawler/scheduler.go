@@ -142,10 +142,9 @@ func (s *schedulerStruct) newLimiter() <-chan struct{} {
 					return
 				}
 
-				limiter <- struct{}{}
-				/* for worker := 0; worker < s.maxWorkers; worker++ {
+				for worker := 0; worker < s.maxWorkers; worker++ {
 					limiter <- struct{}{}
-				} */
+				}
 			}
 		}
 	}()
