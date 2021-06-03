@@ -19,7 +19,7 @@ func init() {
 func TestSchedulerFailure(t *testing.T) {
 	initialGoRoutines := runtime.NumGoroutine()
 
-	scheduler := NewScheduler(time.Millisecond, 10)
+	scheduler := NewScheduler(time.Millisecond, 4)
 
 	seedProfile := instagramProfile{UserID: "-1"}
 	go scheduler.Run(mockFetchProfiles, seedProfile)
@@ -30,7 +30,7 @@ func TestSchedulerFailure(t *testing.T) {
 		profileIDs = append(profileIDs, profile.ID())
 	}
 
-	assert.Equal(t, 0, len(profileIDs))
+	assert.Equal(t, 6, len(profileIDs))
 	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
 }
 
@@ -70,7 +70,7 @@ func TestSchedulerSuccess(t *testing.T) {
 /* Private stuffs */
 
 func mockFetchProfiles(fromProfile Profile) ([]Profile, error) {
-	if fromProfile.ID() == "-1" {
+	if fromProfile.ID() == "-1/1" {
 		return nil, errors.New("fake error")
 	}
 

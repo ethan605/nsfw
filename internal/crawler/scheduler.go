@@ -21,46 +21,46 @@ type crawlJob func(Profile) ([]Profile, error)
 // NewScheduler creates a scheduler, with an amount of time to wait between each request
 // and an upper limit of total profiles to be crawled
 func NewScheduler(deferTime time.Duration, maxProfiles uint32) Scheduler {
-	queue := make(chan Profile)
+	profilesQueue := make(chan Profile)
 	wg := &sync.WaitGroup{}
-	limiter := time.NewTicker(deferTime).C
 
 	return &schedulerStruct{
-		limiter:     limiter,
-		maxProfiles: maxProfiles,
-		queue:       queue,
-		wg:          wg,
+		deferTime:     deferTime,
+		maxProfiles:   maxProfiles,
+		profilesQueue: profilesQueue,
+		wg:            wg,
 	}
 }
 
 type schedulerStruct struct {
-	limiter         <-chan time.Time
+	deferTime       time.Duration
+	limiter         <-chan struct{}
 	maxProfiles     uint32
 	profilesCounter uint32
-	queue           chan Profile
+	profilesQueue   chan Profile
 	wg              *sync.WaitGroup
 }
 
 func (s *schedulerStruct) Run(job crawlJob, profile Profile) {
+	s.limiter = s.newLimiter()
 	s.wg.Add(1)
 	go s.runJob(job, profile)
 
 	s.wg.Wait()
-	close(s.queue)
+	close(s.profilesQueue)
 }
 
 func (s *schedulerStruct) Results() <-chan Profile {
-	return s.queue
+	return s.profilesQueue
 }
 
 func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	defer s.wg.Done()
 
-	<-s.limiter
+	// This throttles jobs until `s.limiter` is closed
+	_, ok := <-s.limiter
 
-	atomicCounter := atomic.LoadUint32(&s.profilesCounter)
-
-	if atomicCounter >= s.maxProfiles {
+	if !ok {
 		logrus.
 			WithField("profile", profile).
 			Info("Max profiles reached, stop crawling")
@@ -79,11 +79,34 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 		return
 	}
 
-	atomic.AddUint32(&s.profilesCounter, (uint32)(len(profiles)))
+	numProfiles := len(profiles)
+	atomic.AddUint32(&s.profilesCounter, (uint32)(numProfiles))
 
+	s.wg.Add(numProfiles)
 	for _, profile := range profiles {
-		s.queue <- profile
-		s.wg.Add(1)
+		s.profilesQueue <- profile
 		go s.runJob(job, profile)
 	}
+}
+
+func (s *schedulerStruct) newLimiter() <-chan struct{} {
+	limiter := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(s.deferTime).C
+
+		for {
+			<-ticker
+			atomicCounter := atomic.LoadUint32(&s.profilesCounter)
+
+			if atomicCounter >= s.maxProfiles {
+				close(limiter)
+				return
+			}
+
+			limiter <- struct{}{}
+		}
+	}()
+
+	return limiter
 }

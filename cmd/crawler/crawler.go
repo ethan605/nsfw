@@ -51,7 +51,7 @@ func crawlInstagram(mock bool) {
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
 
 	if mock {
-		scheduler := crawler.NewScheduler(time.Second, 10)
+		scheduler := crawler.NewScheduler(time.Second/2, 10)
 		instagramCrawler, err = mockInstagramCrawler(config, scheduler)
 	}
 
