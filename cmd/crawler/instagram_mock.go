@@ -35,6 +35,8 @@ type mockInstagramSession struct {
 
 func (s *mockInstagramSession) Start() error {
 	seedProfile := s.fetchProfile()
+	_ = s.config.Output.Write(seedProfile)
+
 	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
 
 	for profile := range s.scheduler.Results() {

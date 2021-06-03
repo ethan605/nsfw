@@ -27,7 +27,7 @@ func NewInstagramSeed(username string) Profile {
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
-	const sessionID = "48056993126:Oy8vcmxDfwaQQ3:14"
+	const sessionID = "48056993126:Lyhz2Nv65JLp2E:26"
 
 	if config.Client == nil {
 		config.Client = resty.New()

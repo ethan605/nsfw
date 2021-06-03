@@ -13,7 +13,7 @@ func init() {
 }
 
 func main() {
-	crawlInstagram(false)
+	crawlInstagram(true)
 }
 
 /* Private stuffs */
@@ -28,10 +28,6 @@ func (o *crawlerOutput) Write(profile crawler.Profile) error {
 }
 
 func crawlInstagram(dryRun bool) {
-	if dryRun {
-		return
-	}
-
 	// TODO: read from somewhere else
 	seedInstagramUsername := "vox.ngoc.traan"
 
@@ -39,9 +35,14 @@ func crawlInstagram(dryRun bool) {
 		Output: &crawlerOutput{},
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
-	scheduler := crawler.NewScheduler(time.Second/2, 10)
+	scheduler := crawler.NewScheduler(time.Second, 10)
 
-	instagramCrawler, err := mockInstagramCrawler(config, scheduler)
+	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
+
+	if dryRun {
+		instagramCrawler, err = mockInstagramCrawler(config, scheduler)
+	}
+
 	panicOnError(err)
 
 	err = instagramCrawler.Start()
