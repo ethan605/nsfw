@@ -59,7 +59,7 @@ func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile)
 		}).
 		Debug("crawling")
 
-	if fromProfile.ID() == "-1" {
+	if fromProfile.Username() == "-1" {
 		return nil, errors.New("fake error")
 	}
 

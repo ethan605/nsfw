@@ -13,6 +13,12 @@ func init() {
 }
 
 func main() {
+	defer func() {
+		logrus.
+			WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
+			Info("Exitting")
+	}()
+
 	crawlInstagram(true)
 }
 
@@ -27,7 +33,7 @@ func (o *crawlerOutput) Write(profile crawler.Profile) error {
 	return nil
 }
 
-func crawlInstagram(dryRun bool) {
+func crawlInstagram(mock bool) {
 	// TODO: read from somewhere else
 	seedInstagramUsername := "vox.ngoc.traan"
 
@@ -35,11 +41,12 @@ func crawlInstagram(dryRun bool) {
 		Output: &crawlerOutput{},
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
 	}
-	scheduler := crawler.NewScheduler(time.Second, 10)
 
+	scheduler := crawler.NewScheduler(time.Second, 100)
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
 
-	if dryRun {
+	if mock {
+		scheduler := crawler.NewScheduler(time.Second, 10)
 		instagramCrawler, err = mockInstagramCrawler(config, scheduler)
 	}
 
@@ -47,10 +54,6 @@ func crawlInstagram(dryRun bool) {
 
 	err = instagramCrawler.Start()
 	panicOnError(err)
-
-	logrus.
-		WithFields(logrus.Fields{"goroutines": runtime.NumGoroutine()}).
-		Debug("Exitting")
 }
 
 func panicOnError(err error) {
