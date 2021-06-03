@@ -10,12 +10,10 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jarcoal/httpmock"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewInstagramSeed(t *testing.T) {
-	logrus.Info("invoke")
 	profile := NewInstagramSeed(fakeUsername)
 	assert.Equal(t, "", profile.AvatarURL())
 	assert.Equal(t, "", profile.DisplayName())
