@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.FatalLevel)
 }
 
 func TestSchedulerFailure(t *testing.T) {

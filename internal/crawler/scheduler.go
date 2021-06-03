@@ -16,7 +16,7 @@ type Scheduler interface {
 
 type SchedulerConfig struct {
 	DeferTime   time.Duration
-	MaxProfiles uint32
+	MaxProfiles int
 	MaxWorkers  int
 }
 
@@ -34,7 +34,7 @@ func NewScheduler(config SchedulerConfig) Scheduler {
 	deferTime := config.DeferTime
 
 	if deferTime == 0 {
-		deferTime = time.Nanosecond
+		deferTime = time.Millisecond
 	}
 
 	maxWorkers := config.MaxWorkers
@@ -43,14 +43,10 @@ func NewScheduler(config SchedulerConfig) Scheduler {
 		maxWorkers = 1
 	}
 
-	logrus.
-		WithFields(logrus.Fields{"config": config, "maxProfiles": uint32(config.MaxProfiles)}).
-		Warn("invoke")
-
 	return &schedulerStruct{
 		cleanUpSignal: cleanUpSignal,
 		deferTime:     deferTime,
-		maxProfiles:   config.MaxProfiles,
+		maxProfiles:   uint32(config.MaxProfiles),
 		maxWorkers:    maxWorkers,
 		profilesQueue: profilesQueue,
 		wg:            wg,
@@ -116,7 +112,7 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	}
 
 	numProfiles := len(profiles)
-	atomic.AddUint32(&s.profilesCounter, (uint32)(numProfiles))
+	atomic.AddUint32(&s.profilesCounter, uint32(numProfiles))
 
 	s.wg.Add(numProfiles)
 	for _, profile := range profiles {
