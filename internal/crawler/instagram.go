@@ -20,7 +20,7 @@ var (
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
-	const sessionID = "48056993126:Lyhz2Nv65JLp2E:26"
+	const sessionID = "48056993126:dM0qI5smuIlzte:18"
 
 	httpClient := config.Client
 
@@ -30,7 +30,7 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 
 	client := resty.NewWithClient(httpClient)
 
-	if config.Seed == (Profile{}) {
+	if config.Seed.Username == "" && config.Seed.ID == "" {
 		return nil, errors.New("missing required Seed config")
 	}
 
@@ -202,16 +202,17 @@ type instagramProfile struct {
 }
 
 func (p instagramProfile) toProfile() Profile {
-	avatarURL := p.ProfilePicURL
+	gallery := []string{}
 
-	if len(p.Media.Edges) > 0 {
-		avatarURL = p.Media.Edges[0].Node.DisplayURL
+	for _, edge := range p.Media.Edges {
+		gallery = append(gallery, edge.Node.DisplayURL)
 	}
 
 	return Profile{
 		Source:      "Instagram",
-		AvatarURL:   avatarURL,
+		AvatarURL:   p.ProfilePicURL,
 		DisplayName: p.FullName,
+		Gallery:     gallery,
 		ID:          p.ID,
 		Username:    p.Username,
 	}

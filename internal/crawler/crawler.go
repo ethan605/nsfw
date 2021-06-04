@@ -13,11 +13,12 @@ type Crawler interface {
 // Profile provides information of a user
 type Profile struct {
 	fmt.Stringer
+	Source      string
 	AvatarURL   string
 	DisplayName string
+	Gallery     []string
 	ID          string
 	Username    string
-	Source      string
 }
 
 func (p Profile) String() string {

@@ -51,12 +51,15 @@ func newCrawlerWriter() *crawlerWriter {
 func (w *crawlerWriter) Write(profile crawler.Profile) error {
 	logrus.WithField("profile", profile).Info("  - writing")
 
-	return w.writer.Write([]string{
+	row := []string{
 		profile.ID,
 		profile.Username,
 		profile.DisplayName,
 		profile.AvatarURL,
-	})
+	}
+
+	row = append(row, profile.Gallery...)
+	return w.writer.Write(row)
 }
 
 func (w *crawlerWriter) Flush() error {
@@ -87,8 +90,8 @@ func crawlInstagram(mock bool) {
 
 	schedulerConfig := crawler.SchedulerConfig{
 		DeferTime:   time.Second,
-		MaxProfiles: 100,
-		MaxWorkers:  4,
+		MaxProfiles: 20,
+		MaxWorkers:  1,
 	}
 	scheduler := crawler.NewScheduler(schedulerConfig)
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)

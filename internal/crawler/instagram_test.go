@@ -151,6 +151,23 @@ func TestInstagramSessions(t *testing.T) {
 	assert.Equal(t, "https://www.instagram.com", session.baseURL())
 }
 
+func TestInstagramProfile(t *testing.T) {
+	profile := instagramProfile{}
+	assert.Equal(t, []string{}, profile.toProfile().Gallery)
+
+	fixture := `{
+		"edge_owner_to_timeline_media": {
+			"edges": [
+				{"node": { "display_url": "fake-url-1" }},
+				{"node": { "display_url": "fake-url-2" }},
+				{"node": { "display_url": "fake-url-3" }}
+			]
+		}
+	}`
+	_ = json.Unmarshal([]byte(fixture), &profile)
+	assert.Equal(t, []string{"fake-url-1", "fake-url-2", "fake-url-3"}, profile.toProfile().Gallery)
+}
+
 /* Private stuffs */
 
 type object map[string]interface{}
