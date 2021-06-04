@@ -1,10 +1,9 @@
-package main
+package crawler
 
 import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"nsfw/internal/crawler"
 	"strings"
 	"sync"
 	"time"
@@ -12,14 +11,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func mockInstagramCrawler(config crawler.Config, limiter crawler.Limiter) (crawler.Crawler, error) {
+func NewDummyCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
 	if config.Writer == nil {
 		return nil, errors.New("missing required Writer config")
 	}
 
-	return &mockInstagramSession{
-		config:  config,
-		limiter: limiter,
+	config.Seed = Profile{ID: "1"}
+
+	return &dummySession{
+		config:        config,
+		limiterConfig: limiterConfig,
 	}, nil
 }
 
@@ -30,24 +31,23 @@ func randomWait(min int) {
 	time.Sleep((time.Duration)(rand.Intn(100)+min) * time.Millisecond)
 }
 
-type mockInstagramSession struct {
-	config  crawler.Config
-	limiter crawler.Limiter
+type dummySession struct {
+	config        Config
+	limiterConfig LimiterConfig
 }
 
-func (s *mockInstagramSession) Run() {
-	seedProfile := crawler.Profile{ID: "1"}
-
-	profilesQueue := make(chan crawler.Profile)
+func (s *dummySession) Run() {
+	limiter := NewLimiter(s.limiterConfig)
+	profilesQueue := make(chan Profile)
 
 	go func() {
 		wg := &sync.WaitGroup{}
 
 		wg.Add(1)
-		go s.crawl(seedProfile, wg, profilesQueue)
+		go s.crawl(s.config.Seed, wg, limiter, profilesQueue)
 
 		wg.Wait()
-		s.limiter.Wait()
+		limiter.Wait()
 
 		close(profilesQueue)
 	}()
@@ -57,10 +57,10 @@ func (s *mockInstagramSession) Run() {
 	}
 }
 
-func (s *mockInstagramSession) crawl(profile crawler.Profile, wg *sync.WaitGroup, profilesQueue chan<- crawler.Profile) {
+func (s *dummySession) crawl(profile Profile, wg *sync.WaitGroup, limiter Limiter, profilesQueue chan<- Profile) {
 	defer wg.Done()
 
-	ok := s.limiter.Take()
+	ok := limiter.Take()
 
 	if !ok {
 		logrus.WithField("profile", profile).Info("max takes reached")
@@ -80,7 +80,7 @@ func (s *mockInstagramSession) crawl(profile crawler.Profile, wg *sync.WaitGroup
 	}
 
 	profilesQueue <- profileDetail
-	s.limiter.Done(1)
+	limiter.Done(1)
 
 	relatedProfiles, err := s.fetchRelatedProfiles(profile)
 
@@ -92,24 +92,26 @@ func (s *mockInstagramSession) crawl(profile crawler.Profile, wg *sync.WaitGroup
 	wg.Add(len(relatedProfiles))
 
 	for _, relatedProfile := range relatedProfiles {
-		go s.crawl(relatedProfile, wg, profilesQueue)
+		go s.crawl(relatedProfile, wg, limiter, profilesQueue)
 	}
 }
 
-func (s *mockInstagramSession) fetchProfileDetail(profile crawler.Profile) (crawler.Profile, error) {
+func (s *dummySession) fetchProfileDetail(profile Profile) (Profile, error) {
 	randomWait(500)
 	return profile, nil
 }
 
-func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) ([]crawler.Profile, error) {
+func (s *dummySession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
+	randomWait(500)
+
 	if strings.HasPrefix(fromProfile.ID, "-1/") {
 		return nil, errors.New("fake error")
 	}
 
-	profiles := []crawler.Profile{}
+	profiles := []Profile{}
 
 	for idx := 1; idx <= 5; idx++ {
-		relatedProfile := crawler.Profile{ID: fmt.Sprintf("%s/%d", fromProfile.ID, idx)}
+		relatedProfile := Profile{ID: fmt.Sprintf("%s/%d", fromProfile.ID, idx)}
 		profiles = append(profiles, relatedProfile)
 	}
 

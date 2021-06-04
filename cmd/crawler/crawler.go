@@ -26,7 +26,12 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(true)
+	switch os.Getenv("SOURCE") {
+	case "instagram":
+		crawlInstagram()
+	default:
+		crawlDummy()
+	}
 }
 
 /* Private stuffs */
@@ -73,7 +78,7 @@ func (w *crawlerWriter) Flush() error {
 	return err
 }
 
-func crawlInstagram(mock bool) {
+func crawlInstagram() {
 	writer := newCrawlerWriter()
 	defer writer.Flush()
 
@@ -95,20 +100,28 @@ func crawlInstagram(mock bool) {
 	}
 	scheduler := crawler.NewScheduler(schedulerConfig)
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
-
-	if mock {
-		limiterConfig := crawler.LimiterConfig{
-			DeferTime:  time.Second,
-			MaxTakes:   10,
-			MaxWorkers: 3,
-		}
-		limiter := crawler.NewLimiter(limiterConfig)
-		instagramCrawler, err = mockInstagramCrawler(config, limiter)
-	}
-
 	panicOnError(err)
 
 	instagramCrawler.Run()
+}
+
+func crawlDummy() {
+	writer := newCrawlerWriter()
+	defer writer.Flush()
+
+	config := crawler.Config{
+		Writer: writer,
+	}
+
+	limiterConfig := crawler.LimiterConfig{
+		DeferTime:  time.Second,
+		MaxTakes:   10,
+		MaxWorkers: 3,
+	}
+	dummyCrawler, err := crawler.NewDummyCrawler(config, limiterConfig)
+	panicOnError(err)
+
+	dummyCrawler.Run()
 }
 
 func panicOnError(err error) {
