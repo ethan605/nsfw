@@ -73,6 +73,7 @@ func (s *instagramSession) baseURL() string {
 }
 
 func (s *instagramSession) crawl(profile Profile) (Profile, []Profile, error) {
+	logrus.WithField("profile", profile).Info("crawling")
 	profileDetail, err := s.fetchProfileDetail(profile)
 
 	if err != nil {
@@ -191,12 +192,25 @@ type instagramProfile struct {
 	Username      string `json:"username"`
 	ProfilePicURL string `json:"profile_pic_url_hd"`
 	ID            string `json:"id"`
+	Media         struct {
+		Edges []struct {
+			Node struct {
+				DisplayURL string `json:"display_url"`
+			} `json:"node"`
+		} `json:"edges"`
+	} `json:"edge_owner_to_timeline_media"`
 }
 
 func (p instagramProfile) toProfile() Profile {
+	avatarURL := p.ProfilePicURL
+
+	if len(p.Media.Edges) > 0 {
+		avatarURL = p.Media.Edges[0].Node.DisplayURL
+	}
+
 	return Profile{
 		Source:      "Instagram",
-		AvatarURL:   p.ProfilePicURL,
+		AvatarURL:   avatarURL,
 		DisplayName: p.FullName,
 		ID:          p.ID,
 		Username:    p.Username,
