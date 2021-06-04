@@ -27,14 +27,13 @@ type crawlJob func(Profile) ([]Profile, error)
 // NewScheduler creates a scheduler, with an amount of time to wait between each request
 // and an upper limit of total profiles to be crawled
 func NewScheduler(config SchedulerConfig) Scheduler {
-	cleanUpSignal := make(chan struct{})
 	profilesQueue := make(chan Profile)
 	wg := &sync.WaitGroup{}
 
 	deferTime := config.DeferTime
 
 	if deferTime == 0 {
-		deferTime = time.Millisecond
+		deferTime = 10 * time.Millisecond
 	}
 
 	maxWorkers := config.MaxWorkers
@@ -44,7 +43,6 @@ func NewScheduler(config SchedulerConfig) Scheduler {
 	}
 
 	return &schedulerStruct{
-		cleanUpSignal: cleanUpSignal,
 		deferTime:     deferTime,
 		maxProfiles:   uint32(config.MaxProfiles),
 		maxWorkers:    maxWorkers,
@@ -60,7 +58,6 @@ type schedulerStruct struct {
 	maxWorkers  int
 
 	// Signal to clean-up running goroutines when `wg.Wait()` reached
-	cleanUpSignal   chan struct{}
 	limiter         <-chan struct{}
 	profilesCounter uint32
 	profilesQueue   chan Profile
@@ -73,10 +70,6 @@ func (s *schedulerStruct) Run(job crawlJob, profile Profile) {
 	s.wg.Add(1)
 	go s.runJob(job, profile)
 	s.wg.Wait()
-
-	// To clean-up all running goroutines that won't automatically stop
-	close(s.cleanUpSignal)
-	time.Sleep(s.deferTime)
 
 	// Finally close profilesQueue to enable iterating `Results()` via `range`
 	close(s.profilesQueue)
@@ -128,23 +121,16 @@ func (s *schedulerStruct) newLimiter() <-chan struct{} {
 		ticker := time.NewTicker(s.deferTime).C
 
 		for {
-			select {
-			// Edge case: when all jobs failed without exceeding s.maxProfiles,
-			// we need to manually stop this goroutine. Otherwise it will leak.
-			case <-s.cleanUpSignal:
+			<-ticker
+			atomicCounter := atomic.LoadUint32(&s.profilesCounter)
+
+			if atomicCounter >= s.maxProfiles {
+				close(limiter)
 				return
+			}
 
-			case <-ticker:
-				atomicCounter := atomic.LoadUint32(&s.profilesCounter)
-
-				if atomicCounter >= s.maxProfiles {
-					close(limiter)
-					return
-				}
-
-				for worker := 0; worker < s.maxWorkers; worker++ {
-					limiter <- struct{}{}
-				}
+			for worker := 0; worker < s.maxWorkers; worker++ {
+				limiter <- struct{}{}
 			}
 		}
 	}()

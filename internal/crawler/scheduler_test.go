@@ -17,8 +17,6 @@ func init() {
 }
 
 func TestSchedulerFailure(t *testing.T) {
-	initialGoRoutines := runtime.NumGoroutine()
-
 	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 10})
 
 	seedProfile := instagramProfile{UserID: "-1"}
@@ -31,7 +29,6 @@ func TestSchedulerFailure(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(profileIDs))
-	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
 }
 
 func TestSchedulerSuccess(t *testing.T) {
