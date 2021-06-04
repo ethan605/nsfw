@@ -2,11 +2,11 @@ on: push
 name: Test
 jobs:
   checks:
-    name: Test
+    name: Run
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    - name: Run
+    - name: Run tests
       uses: cedrickring/golang-action@1.7.0
     - name: Upload coverage to Codecov
       run: bash <(curl -s https://codecov.io/bash)
