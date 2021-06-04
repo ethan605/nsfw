@@ -39,8 +39,8 @@ func TestNewInstagramCrawler(t *testing.T) {
 }
 
 func TestInstagramCrawlerRunFailure(t *testing.T) {
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
 	seedProfile := instagramProfile{IgName: fakeUsername}
@@ -94,8 +94,8 @@ func TestInstagramCrawlerRunFailure(t *testing.T) {
 
 func TestInstagramCrawlerRunSuccess(t *testing.T) {
 	// Setup HTTP requests mock
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
 	seed := instagramProfile{IgName: fakeUsername}
@@ -155,14 +155,14 @@ func TestInstagramCrawlerRunSuccess(t *testing.T) {
 }
 
 func TestFetchProfileFailure(t *testing.T) {
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
+		client: resty.NewWithClient(client),
 		config: Config{
-			Client: client,
-			Seed:   instagramProfile{},
+			Seed: instagramProfile{},
 		},
 	}
 
@@ -170,8 +170,8 @@ func TestFetchProfileFailure(t *testing.T) {
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
+		client: resty.NewWithClient(client),
 		config: Config{
-			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",
 			},
@@ -188,22 +188,20 @@ func TestFetchProfileFailure(t *testing.T) {
 }
 
 func TestFetchRelatedProfilesFailure(t *testing.T) {
-	client := resty.New()
-	httpmock.ActivateNonDefault(client.GetClient())
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
 	session := instagramSession{
-		config: Config{
-			Client: client,
-		},
+		client: resty.NewWithClient(client),
 	}
 
 	_, err := session.fetchRelatedProfiles(instagramProfile{})
 	assert.NotEqual(t, nil, err)
 
 	session = instagramSession{
+		client: resty.NewWithClient(client),
 		config: Config{
-			Client: client,
 			Seed: instagramProfile{
 				IgName: "invalid.user.name",
 			},

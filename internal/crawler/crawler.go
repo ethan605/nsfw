@@ -2,8 +2,7 @@ package crawler
 
 import (
 	"fmt"
-
-	"github.com/go-resty/resty/v2"
+	"net/http"
 )
 
 // Crawler represents a crawler instance
@@ -28,9 +27,9 @@ type Writer interface {
 // Config holds configurations for the crawler
 type Config struct {
 	// HTTP client, auto initialise with `resty.New()` if `nil`
-	Client *resty.Client
-	// Writer writing stream
-	Writer Writer
+	Client *http.Client
 	// The initial profile to start crawling with
 	Seed Profile
+	// Writer writing stream
+	Writer Writer
 }

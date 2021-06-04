@@ -30,9 +30,13 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
 	const sessionID = "48056993126:Lyhz2Nv65JLp2E:26"
 
-	if config.Client == nil {
-		config.Client = resty.New()
+	httpClient := config.Client
+
+	if httpClient == nil {
+		httpClient = &http.Client{}
 	}
+
+	client := resty.NewWithClient(httpClient)
 
 	if config.Seed == nil {
 		return nil, errors.New("missing required Seed config")
@@ -43,6 +47,7 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	}
 
 	return &instagramSession{
+		client:    client,
 		config:    config,
 		scheduler: scheduler,
 		sessionID: sessionID,
@@ -79,10 +84,9 @@ func (s *instagramSession) Run() error {
 var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
+	client    *resty.Client
 	config    Config
 	scheduler Scheduler
-
-	// Cookie
 	sessionID string
 }
 
@@ -97,7 +101,7 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 		}
 	}
 
-	resp, err := s.config.Client.R().
+	resp, err := s.client.R().
 		SetPathParam("username", s.config.Seed.Username()).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
@@ -155,7 +159,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}
 	}
 
-	resp, err := s.config.Client.R().
+	resp, err := s.client.R().
 		SetQueryParams(map[string]string{
 			"query_hash": SuggestedQueryHash,
 			"variables":  string(variables),

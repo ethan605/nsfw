@@ -24,18 +24,8 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(true)
+	crawlInstagram(false)
 }
-
-/* func main() {
-	log.Println("before: goroutines =", runtime.NumGoroutine())
-	client := resty.New()
-	resp, _ := client.R().
-		Get("https://http2.golang.org/reqinfo")
-
-	log.Println("result", string(resp.Body()))
-	log.Println("after: goroutines =", runtime.NumGoroutine())
-} */
 
 /* Private stuffs */
 
@@ -53,8 +43,8 @@ func crawlInstagram(mock bool) {
 	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
-		Writer: &crawlerWriter{},
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
+		Writer: &crawlerWriter{},
 	}
 
 	schedulerConfig := crawler.SchedulerConfig{
