@@ -28,7 +28,8 @@ type crawlJob func(Profile) ([]Profile, error)
 // and an upper limit of total profiles to be crawled
 func NewScheduler(config SchedulerConfig) Scheduler {
 	profilesQueue := make(chan Profile)
-	wg := &sync.WaitGroup{}
+	jobsWg := &sync.WaitGroup{}
+	limiterWg := &sync.WaitGroup{}
 
 	deferTime := config.DeferTime
 
@@ -43,11 +44,13 @@ func NewScheduler(config SchedulerConfig) Scheduler {
 	}
 
 	return &schedulerStruct{
-		deferTime:     deferTime,
-		maxProfiles:   uint32(config.MaxProfiles),
-		maxWorkers:    maxWorkers,
+		deferTime:   deferTime,
+		maxProfiles: uint32(config.MaxProfiles),
+		maxWorkers:  maxWorkers,
+
+		jobsWg:        jobsWg,
+		limiterWg:     limiterWg,
 		profilesQueue: profilesQueue,
-		wg:            wg,
 	}
 }
 
@@ -57,19 +60,29 @@ type schedulerStruct struct {
 	maxProfiles uint32
 	maxWorkers  int
 
-	// Signal to clean-up running goroutines when `wg.Wait()` reached
+	// jobsWg: wait for all crawling jobs to be done
+	// limiter: limit concurrent jobs by time and `maxProfiles`
+	// limiterWg: wait for limiter goroutine to be done
+	jobsWg          *sync.WaitGroup
 	limiter         <-chan struct{}
+	limiterWg       *sync.WaitGroup
 	profilesCounter uint32
 	profilesQueue   chan Profile
-	wg              *sync.WaitGroup
 }
 
 func (s *schedulerStruct) Run(job crawlJob, profile Profile) {
 	s.limiter = s.newLimiter()
 
-	s.wg.Add(1)
+	s.jobsWg.Add(1)
 	go s.runJob(job, profile)
-	s.wg.Wait()
+	s.jobsWg.Wait()
+
+	// Check if the profiles counter didn't exceed `maxProfiles`,
+	// then add up to gracefully exit the limiter goroutine
+	if atomicCounter := atomic.LoadUint32(&s.profilesCounter); atomicCounter < s.maxProfiles {
+		atomic.AddUint32(&s.profilesCounter, s.maxProfiles-atomicCounter)
+	}
+	s.limiterWg.Wait()
 
 	// Finally close profilesQueue to enable iterating `Results()` via `range`
 	close(s.profilesQueue)
@@ -80,7 +93,7 @@ func (s *schedulerStruct) Results() <-chan Profile {
 }
 
 func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
-	defer s.wg.Done()
+	defer s.jobsWg.Done()
 
 	// This throttles jobs until `s.limiter` is closed
 	_, ok := <-s.limiter
@@ -105,7 +118,7 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	}
 
 	numProfiles := len(profiles)
-	s.wg.Add(numProfiles)
+	s.jobsWg.Add(numProfiles)
 	atomic.AddUint32(&s.profilesCounter, uint32(numProfiles))
 
 	for _, profile := range profiles {
@@ -117,7 +130,9 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 func (s *schedulerStruct) newLimiter() <-chan struct{} {
 	limiter := make(chan struct{})
 
+	s.limiterWg.Add(1)
 	go func() {
+		defer s.limiterWg.Done()
 		ticker := time.NewTicker(s.deferTime).C
 
 		for {

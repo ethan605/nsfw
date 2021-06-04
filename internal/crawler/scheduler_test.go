@@ -17,7 +17,8 @@ func init() {
 }
 
 func TestSchedulerFailure(t *testing.T) {
-	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 10})
+	initialGoRoutines := runtime.NumGoroutine()
+	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 4})
 
 	seedProfile := instagramProfile{UserID: "-1"}
 	go scheduler.Run(mockFetchProfiles, seedProfile)
@@ -29,6 +30,7 @@ func TestSchedulerFailure(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(profileIDs))
+	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
 }
 
 func TestSchedulerSuccess(t *testing.T) {
@@ -48,18 +50,13 @@ func TestSchedulerSuccess(t *testing.T) {
 
 	assert.Equal(t, 12, len(profileIDs))
 
-	// First level
-	results := []string{"1/1", "1/2", "1/3"}
-	assert.Equal(t, results, profileIDs[0:3])
-
-	// Second level
-	results = []string{
-		"1/1/1", "1/1/2", "1/1/3",
-		"1/2/1", "1/2/2", "1/2/3",
-		"1/3/1", "1/3/2", "1/3/3",
+	results := []string{
+		"1/1", "1/1/1", "1/1/2", "1/1/3",
+		"1/2", "1/2/1", "1/2/2", "1/2/3",
+		"1/3", "1/3/1", "1/3/2", "1/3/3",
 	}
-	sort.Strings(profileIDs[3:])
-	assert.Equal(t, results, profileIDs[3:])
+	sort.Strings(profileIDs)
+	assert.Equal(t, results, profileIDs)
 
 	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
 }

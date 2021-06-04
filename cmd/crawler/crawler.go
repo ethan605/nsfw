@@ -68,8 +68,8 @@ func crawlInstagram(mock bool) {
 	if mock {
 		schedulerConfig := crawler.SchedulerConfig{
 			DeferTime:   time.Second / 2,
-			MaxProfiles: 10,
-			MaxWorkers:  1,
+			MaxProfiles: 100,
+			MaxWorkers:  3,
 		}
 		scheduler := crawler.NewScheduler(schedulerConfig)
 		instagramCrawler, err = mockInstagramCrawler(config, scheduler)

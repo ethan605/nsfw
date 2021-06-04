@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -66,11 +67,11 @@ func (s *instagramSession) Run() error {
 
 	for profile := range s.scheduler.Results() {
 		if err = s.config.Writer.Write(profile); err != nil {
-			return err
+			logrus.WithField("error", err).Error("writing failed")
 		}
 	}
 
-	return nil
+	return err
 }
 
 /* Private stuffs */
