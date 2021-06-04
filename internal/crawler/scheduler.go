@@ -14,6 +14,7 @@ type Scheduler interface {
 	Results() <-chan Profile
 }
 
+// SchedulerConfig contains configuration for a Scheduler
 type SchedulerConfig struct {
 	DeferTime   time.Duration
 	MaxProfiles int
