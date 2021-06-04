@@ -8,8 +8,7 @@ import (
 )
 
 func init() {
-	// logrus.SetLevel(logrus.FatalLevel)
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.FatalLevel)
 }
 
 func TestProfile(t *testing.T) {

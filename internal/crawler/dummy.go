@@ -3,7 +3,6 @@ package crawler
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -28,11 +27,6 @@ func NewDummyCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error
 
 /* Private stuffs */
 
-func randomWait(min int) {
-	rand.Seed(time.Now().UnixNano())
-	time.Sleep((time.Duration)(rand.Intn(100)+min) * time.Millisecond)
-}
-
 type dummySession struct {
 	config        Config
 	limiterConfig LimiterConfig
@@ -49,9 +43,7 @@ func (s *dummySession) Run() {
 		go s.crawl(s.config.Seed, wg, limiter, profilesQueue)
 
 		wg.Wait()
-		logrus.Info("invoke 2")
 		limiter.Wait()
-		logrus.Info("invoke 3")
 
 		close(profilesQueue)
 	}()
@@ -101,13 +93,14 @@ func (s *dummySession) crawl(profile Profile, wg *sync.WaitGroup, limiter Limite
 }
 
 func (s *dummySession) fetchProfileDetail(profile Profile) (Profile, error) {
-	randomWait(500)
+	if profile.ID == "-1/1" {
+		return Profile{}, errors.New("fake error")
+	}
+
 	return profile, nil
 }
 
 func (s *dummySession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
-	randomWait(500)
-
 	if strings.HasPrefix(fromProfile.ID, "-1/") {
 		return nil, errors.New("fake error")
 	}

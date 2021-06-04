@@ -110,14 +110,14 @@ func crawlDummy() {
 	defer writer.Flush()
 
 	config := crawler.Config{
-		Seed:   crawler.Profile{ID: "-1"},
+		Seed:   crawler.Profile{ID: "1"},
 		Writer: writer,
 	}
 
 	limiterConfig := crawler.LimiterConfig{
-		DeferTime: 100 * time.Millisecond,
-		MaxTakes:  6,
-		// MaxWorkers: 1,
+		DeferTime:  200 * time.Millisecond,
+		MaxTakes:   20,
+		MaxWorkers: 3,
 	}
 	dummyCrawler, err := crawler.NewDummyCrawler(config, limiterConfig)
 	panicOnError(err)

@@ -4,8 +4,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/sirupsen/logrus"
 )
 
 // Limiter manages rate limiting based on time, max takes threshold and max background workers
@@ -67,10 +65,11 @@ func (l *limiter) Take() bool {
 // then add up to gracefully exit the throttle goroutine
 func (l *limiter) Wait() {
 	atomicCounter := atomic.LoadUint32(&l.takesCounter)
-	logrus.WithField("counter", atomicCounter).Debug("invoke")
+
 	if atomicCounter < l.maxTakes {
 		atomic.AddUint32(&l.takesCounter, l.maxTakes-atomicCounter)
 	}
+
 	l.wg.Wait()
 }
 
@@ -103,10 +102,8 @@ func (l *limiter) newThrottle() {
 		for {
 			<-ticker
 			atomicCounter := atomic.LoadUint32(&l.takesCounter)
-			logrus.WithField("counter", atomicCounter).WithField("maxTakes", l.maxTakes).Debug("invoke throttle")
 
 			if atomicCounter >= l.maxTakes {
-				logrus.Debug("invoke inner")
 				close(l.throttle)
 				return
 			}
