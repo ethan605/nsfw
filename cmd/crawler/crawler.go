@@ -24,7 +24,7 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(false)
+	crawlInstagram(true)
 }
 
 /* Private stuffs */
@@ -58,7 +58,7 @@ func crawlInstagram(mock bool) {
 	if mock {
 		schedulerConfig := crawler.SchedulerConfig{
 			DeferTime:   time.Second / 2,
-			MaxProfiles: 100,
+			MaxProfiles: 20,
 			MaxWorkers:  3,
 		}
 		scheduler := crawler.NewScheduler(schedulerConfig)
