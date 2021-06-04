@@ -3,7 +3,6 @@ package crawler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
@@ -18,13 +17,6 @@ var (
 	UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"
 )
 
-// NewInstagramSeed creates a profile of an Instagram user
-func NewInstagramSeed(username string) Profile {
-	return instagramProfile{
-		IgName: username,
-	}
-}
-
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
@@ -38,7 +30,7 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 
 	client := resty.NewWithClient(httpClient)
 
-	if config.Seed == nil {
+	if config.Seed == (Profile{}) {
 		return nil, errors.New("missing required Seed config")
 	}
 
@@ -102,7 +94,7 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 	}
 
 	resp, err := s.client.R().
-		SetPathParam("username", s.config.Seed.Username()).
+		SetPathParam("username", s.config.Seed.Username).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
@@ -115,15 +107,15 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 		Get(s.baseURL() + "/{username}/")
 
 	if err != nil {
-		return nil, err
+		return Profile{}, err
 	}
 
 	if resp.StatusCode() != 200 {
-		return nil, errors.New("fetch profile error")
+		return Profile{}, errors.New("fetch profile error")
 	}
 
 	data, _ := resp.Result().(*schema)
-	return data.Graphql.User, nil
+	return data.Graphql.User.toProfile(), nil
 }
 
 func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
@@ -136,7 +128,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		IncludeHighlightReels  bool   `json:"include_highlight_reels"`
 		IncludeLiveStatus      bool   `json:"include_live_status"`
 	}{
-		UserID:                 fromProfile.ID(),
+		UserID:                 fromProfile.ID,
 		IncludeChaining:        true,
 		IncludeReel:            false,
 		IncludeSuggestedUsers:  true,
@@ -184,7 +176,7 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 	profiles := []Profile{}
 
 	for _, edge := range data.Data.User.EdgeChaining.Edges {
-		profiles = append(profiles, edge.Node)
+		profiles = append(profiles, edge.Node.toProfile())
 	}
 
 	return profiles, nil
@@ -194,17 +186,17 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 
 type instagramProfile struct {
 	FullName      string `json:"full_name"`
-	IgName        string `json:"username"`
+	Username      string `json:"username"`
 	ProfilePicURL string `json:"profile_pic_url_hd"`
-	UserID        string `json:"id"`
+	ID            string `json:"id"`
 }
 
-var _ Profile = (*instagramProfile)(nil)
-
-func (p instagramProfile) AvatarURL() string   { return p.ProfilePicURL }
-func (p instagramProfile) DisplayName() string { return p.FullName }
-func (p instagramProfile) Username() string    { return p.IgName }
-func (p instagramProfile) ID() string          { return p.UserID }
-func (p instagramProfile) String() string {
-	return fmt.Sprintf("<Instagram %s %s %s>", p.UserID, p.IgName, p.FullName)
+func (p instagramProfile) toProfile() Profile {
+	return Profile{
+		Source:      "Instagram",
+		AvatarURL:   p.ProfilePicURL,
+		DisplayName: p.FullName,
+		ID:          p.ID,
+		Username:    p.Username,
+	}
 }

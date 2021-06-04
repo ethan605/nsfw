@@ -11,12 +11,23 @@ type Crawler interface {
 }
 
 // Profile provides information of a user
-type Profile interface {
+type Profile struct {
 	fmt.Stringer
-	AvatarURL() string
-	DisplayName() string
-	ID() string
-	Username() string
+	AvatarURL   string
+	DisplayName string
+	ID          string
+	Username    string
+	Source      string
+}
+
+func (p Profile) String() string {
+	source := "Profile"
+
+	if p.Source != "" {
+		source = p.Source
+	}
+
+	return fmt.Sprintf("<%s %s %s %s>", source, p.ID, p.Username, p.DisplayName)
 }
 
 // Writer provides interfaces to output profiles

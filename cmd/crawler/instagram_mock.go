@@ -49,20 +49,20 @@ func (s *mockInstagramSession) Run() error {
 
 func (s *mockInstagramSession) fetchProfile() crawler.Profile {
 	randomWait(500)
-	return crawler.NewInstagramSeed("1")
+	return crawler.Profile{ID: "1"}
 }
 
 func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) ([]crawler.Profile, error) {
 	logrus.WithField("profile", fromProfile).Info("crawling")
 
-	if strings.HasPrefix(fromProfile.Username(), "-1/") {
+	if strings.HasPrefix(fromProfile.ID, "-1/") {
 		return nil, errors.New("fake error")
 	}
 
 	profiles := []crawler.Profile{}
 
 	for idx := 1; idx <= 3; idx++ {
-		relatedProfile := crawler.NewInstagramSeed(fmt.Sprintf("%s/%d", fromProfile.Username(), idx))
+		relatedProfile := crawler.Profile{ID: fmt.Sprintf("%s/%d", fromProfile.ID, idx)}
 		profiles = append(profiles, relatedProfile)
 	}
 

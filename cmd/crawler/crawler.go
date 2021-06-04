@@ -26,7 +26,7 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(false)
+	crawlInstagram(true)
 }
 
 /* Private stuffs */
@@ -52,10 +52,10 @@ func (w *crawlerWriter) Write(profile crawler.Profile) error {
 	logrus.WithField("profile", profile).Info("writing")
 
 	return w.writer.Write([]string{
-		profile.ID(),
-		profile.Username(),
-		profile.DisplayName(),
-		profile.AvatarURL(),
+		profile.ID,
+		profile.Username,
+		profile.DisplayName,
+		profile.AvatarURL,
 	})
 }
 
@@ -75,10 +75,13 @@ func crawlInstagram(mock bool) {
 	defer writer.Flush()
 
 	// TODO: read from somewhere else
-	seedInstagramUsername := "vox.ngoc.traan"
+	seedInstagramProfile := crawler.Profile{
+		ID:       "3030197091",
+		Username: "vox.ngoc.traan",
+	}
 
 	config := crawler.Config{
-		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
+		Seed:   seedInstagramProfile,
 		Writer: writer,
 	}
 
