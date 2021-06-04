@@ -26,7 +26,7 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(false)
+	crawlInstagram(true)
 }
 
 /* Private stuffs */
@@ -97,13 +97,13 @@ func crawlInstagram(mock bool) {
 	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
 
 	if mock {
-		schedulerConfig := crawler.SchedulerConfig{
-			DeferTime:   time.Second,
-			MaxProfiles: 21,
-			MaxWorkers:  3,
+		limiterConfig := crawler.LimiterConfig{
+			DeferTime:  time.Second,
+			MaxTakes:   10,
+			MaxWorkers: 3,
 		}
-		scheduler := crawler.NewScheduler(schedulerConfig)
-		instagramCrawler, err = mockInstagramCrawler(config, scheduler)
+		limiter := crawler.NewLimiter(limiterConfig)
+		instagramCrawler, err = mockInstagramCrawler(config, limiter)
 	}
 
 	panicOnError(err)
