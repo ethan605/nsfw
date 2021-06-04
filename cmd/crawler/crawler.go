@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/csv"
 	"nsfw/internal/crawler"
 	"os"
 	"runtime"
@@ -13,6 +14,7 @@ func init() {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	if os.Getenv("ENV") == "production" {
+		logrus.SetLevel(logrus.InfoLevel)
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 	}
 }
@@ -24,27 +26,60 @@ func main() {
 			Info("Gracefully shutting down")
 	}()
 
-	crawlInstagram(true)
+	crawlInstagram(false)
 }
 
 /* Private stuffs */
 
-type crawlerWriter struct{}
+type crawlerWriter struct {
+	file   *os.File
+	writer *csv.Writer
+}
 
-func (o *crawlerWriter) Write(profile crawler.Profile) error {
-	logrus.
-		WithFields(logrus.Fields{"profile": profile}).
-		Info("  writing")
-	return nil
+func newCrawlerWriter() *crawlerWriter {
+	file, err := os.Create("result.csv")
+	panicOnError(err)
+
+	writer := csv.NewWriter(file)
+
+	return &crawlerWriter{
+		file:   file,
+		writer: writer,
+	}
+}
+
+func (w *crawlerWriter) Write(profile crawler.Profile) error {
+	logrus.WithField("profile", profile).Info("writing")
+
+	return w.writer.Write([]string{
+		profile.ID(),
+		profile.Username(),
+		profile.DisplayName(),
+		profile.AvatarURL(),
+	})
+}
+
+func (w *crawlerWriter) Flush() error {
+	w.writer.Flush()
+	err := w.file.Close()
+
+	if err != nil {
+		logrus.WithField("error", err).Error("flushing writer failed")
+	}
+
+	return err
 }
 
 func crawlInstagram(mock bool) {
+	writer := newCrawlerWriter()
+	defer writer.Flush()
+
 	// TODO: read from somewhere else
 	seedInstagramUsername := "vox.ngoc.traan"
 
 	config := crawler.Config{
 		Seed:   crawler.NewInstagramSeed(seedInstagramUsername),
-		Writer: &crawlerWriter{},
+		Writer: writer,
 	}
 
 	schedulerConfig := crawler.SchedulerConfig{

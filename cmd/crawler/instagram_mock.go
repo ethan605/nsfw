@@ -53,12 +53,7 @@ func (s *mockInstagramSession) fetchProfile() crawler.Profile {
 }
 
 func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) ([]crawler.Profile, error) {
-	logrus.
-		WithFields(logrus.Fields{
-			"profile": fromProfile.Username(),
-			"time":    time.Now().Format("15:04:05.999"),
-		}).
-		Debug("crawling")
+	logrus.WithField("profile", fromProfile).Info("crawling")
 
 	if strings.HasPrefix(fromProfile.Username(), "-1/") {
 		return nil, errors.New("fake error")

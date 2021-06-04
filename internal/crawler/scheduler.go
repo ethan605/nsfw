@@ -101,7 +101,7 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 	if !ok {
 		logrus.
 			WithField("profile", profile).
-			Info("Max profiles reached, stop crawling")
+			Info("max profiles reached, stop crawling")
 		return
 	}
 
@@ -113,7 +113,7 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 				"profile": profile,
 				"error":   err,
 			}).
-			Error("Crawling profile error")
+			Error("crawling profile error")
 		return
 	}
 
