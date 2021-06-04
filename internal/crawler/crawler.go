@@ -7,7 +7,7 @@ import (
 
 // Crawler represents a crawler instance
 type Crawler interface {
-	Run() error
+	Run()
 }
 
 // Profile provides information of a user

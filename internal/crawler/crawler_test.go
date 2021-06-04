@@ -3,8 +3,13 @@ package crawler
 import (
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	logrus.SetLevel(logrus.FatalLevel)
+}
 
 func TestProfile(t *testing.T) {
 	profile := Profile{

@@ -47,28 +47,14 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 }
 
 // Run begins crawling data on instagram.com
-func (s *instagramSession) Run() error {
-	seedProfile, err := s.fetchProfile()
-
-	if err != nil {
-		return err
-	}
-
-	err = s.config.Writer.Write(seedProfile)
-
-	if err != nil {
-		return err
-	}
-
-	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
+func (s *instagramSession) Run() {
+	go s.scheduler.Run(s.crawl, s.config.Seed)
 
 	for profile := range s.scheduler.Results() {
-		if err = s.config.Writer.Write(profile); err != nil {
+		if err := s.config.Writer.Write(profile); err != nil {
 			logrus.WithField("error", err).Error("writing failed")
 		}
 	}
-
-	return err
 }
 
 /* Private stuffs */
@@ -86,7 +72,23 @@ func (s *instagramSession) baseURL() string {
 	return "https://www.instagram.com"
 }
 
-func (s *instagramSession) fetchProfile() (Profile, error) {
+func (s *instagramSession) crawl(profile Profile) (Profile, []Profile, error) {
+	profileDetail, err := s.fetchProfileDetail(profile)
+
+	if err != nil {
+		return Profile{}, nil, err
+	}
+
+	relatedProfiles, err := s.fetchRelatedProfiles(profile)
+
+	if err != nil {
+		return Profile{}, nil, err
+	}
+
+	return profileDetail, relatedProfiles, nil
+}
+
+func (s *instagramSession) fetchProfileDetail(profile Profile) (Profile, error) {
 	type schema struct {
 		Graphql struct {
 			User instagramProfile
@@ -94,7 +96,7 @@ func (s *instagramSession) fetchProfile() (Profile, error) {
 	}
 
 	resp, err := s.client.R().
-		SetPathParam("username", s.config.Seed.Username).
+		SetPathParam("username", profile.Username).
 		SetQueryParam("__a", "1").
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{

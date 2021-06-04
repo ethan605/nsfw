@@ -22,7 +22,7 @@ type SchedulerConfig struct {
 
 /* Private stuffs */
 
-type crawlJob func(Profile) ([]Profile, error)
+type crawlJob func(Profile) (Profile, []Profile, error)
 
 // NewScheduler creates a scheduler, with an amount of time to wait between each request
 // and an upper limit of total profiles to be crawled
@@ -105,7 +105,7 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 		return
 	}
 
-	profiles, err := job(profile)
+	profileDetail, relatedProfiles, err := job(profile)
 
 	if err != nil {
 		logrus.
@@ -117,12 +117,13 @@ func (s *schedulerStruct) runJob(job crawlJob, profile Profile) {
 		return
 	}
 
-	numProfiles := len(profiles)
-	s.jobsWg.Add(numProfiles)
-	atomic.AddUint32(&s.profilesCounter, uint32(numProfiles))
+	s.profilesQueue <- profileDetail
+	atomic.AddUint32(&s.profilesCounter, 1)
 
-	for _, profile := range profiles {
-		s.profilesQueue <- profile
+	numProfiles := len(relatedProfiles)
+	s.jobsWg.Add(numProfiles)
+
+	for _, profile := range relatedProfiles {
 		go s.runJob(job, profile)
 	}
 }

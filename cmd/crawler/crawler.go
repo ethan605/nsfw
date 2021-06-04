@@ -37,7 +37,7 @@ type crawlerWriter struct {
 }
 
 func newCrawlerWriter() *crawlerWriter {
-	file, err := os.Create("result.csv")
+	file, err := os.Create("results.csv")
 	panicOnError(err)
 
 	writer := csv.NewWriter(file)
@@ -49,7 +49,7 @@ func newCrawlerWriter() *crawlerWriter {
 }
 
 func (w *crawlerWriter) Write(profile crawler.Profile) error {
-	logrus.WithField("profile", profile).Info("writing")
+	logrus.WithField("profile", profile).Info("  - writing")
 
 	return w.writer.Write([]string{
 		profile.ID,
@@ -95,8 +95,8 @@ func crawlInstagram(mock bool) {
 
 	if mock {
 		schedulerConfig := crawler.SchedulerConfig{
-			DeferTime:   time.Second / 2,
-			MaxProfiles: 20,
+			DeferTime:   time.Second,
+			MaxProfiles: 21,
 			MaxWorkers:  3,
 		}
 		scheduler := crawler.NewScheduler(schedulerConfig)
@@ -105,8 +105,7 @@ func crawlInstagram(mock bool) {
 
 	panicOnError(err)
 
-	err = instagramCrawler.Run()
-	panicOnError(err)
+	instagramCrawler.Run()
 }
 
 func panicOnError(err error) {

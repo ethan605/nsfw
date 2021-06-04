@@ -34,26 +34,41 @@ type mockInstagramSession struct {
 	scheduler crawler.Scheduler
 }
 
-func (s *mockInstagramSession) Run() error {
-	seedProfile := s.fetchProfile()
-	_ = s.config.Writer.Write(seedProfile)
-
-	go s.scheduler.Run(s.fetchRelatedProfiles, seedProfile)
+func (s *mockInstagramSession) Run() {
+	seedProfile := crawler.Profile{ID: "1"}
+	go s.scheduler.Run(s.crawl, seedProfile)
 
 	for profile := range s.scheduler.Results() {
 		_ = s.config.Writer.Write(profile)
 	}
-
-	return nil
 }
 
-func (s *mockInstagramSession) fetchProfile() crawler.Profile {
+func (s *mockInstagramSession) crawl(profile crawler.Profile) (crawler.Profile, []crawler.Profile, error) {
+	profileDetail, err := s.fetchProfileDetail(profile)
+
+	if err != nil {
+		return crawler.Profile{}, nil, err
+	}
+
+	relatedProfiles, err := s.fetchRelatedProfiles(profile)
+
+	if err != nil {
+		return crawler.Profile{}, nil, err
+	}
+
+	return profileDetail, relatedProfiles, nil
+}
+
+func (s *mockInstagramSession) fetchProfileDetail(profile crawler.Profile) (crawler.Profile, error) {
 	randomWait(500)
-	return crawler.Profile{ID: "1"}
+	return profile, nil
 }
 
 func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile) ([]crawler.Profile, error) {
-	logrus.WithField("profile", fromProfile).Info("crawling")
+	logrus.WithFields(logrus.Fields{
+		"profile": fromProfile,
+		"time":    time.Now().Format("15:04:05.000"),
+	}).Info("crawling")
 
 	if strings.HasPrefix(fromProfile.ID, "-1/") {
 		return nil, errors.New("fake error")
@@ -61,7 +76,7 @@ func (s *mockInstagramSession) fetchRelatedProfiles(fromProfile crawler.Profile)
 
 	profiles := []crawler.Profile{}
 
-	for idx := 1; idx <= 3; idx++ {
+	for idx := 1; idx <= 5; idx++ {
 		relatedProfile := crawler.Profile{ID: fmt.Sprintf("%s/%d", fromProfile.ID, idx)}
 		profiles = append(profiles, relatedProfile)
 	}
