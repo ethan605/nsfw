@@ -12,11 +12,13 @@ import (
 )
 
 func NewDummyCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
+	if config.Seed.Username == "" && config.Seed.ID == "" {
+		return nil, errors.New("missing required Seed config")
+	}
+
 	if config.Writer == nil {
 		return nil, errors.New("missing required Writer config")
 	}
-
-	config.Seed = Profile{ID: "1"}
 
 	return &dummySession{
 		config:        config,
@@ -47,7 +49,9 @@ func (s *dummySession) Run() {
 		go s.crawl(s.config.Seed, wg, limiter, profilesQueue)
 
 		wg.Wait()
+		logrus.Info("invoke 2")
 		limiter.Wait()
+		logrus.Info("invoke 3")
 
 		close(profilesQueue)
 	}()

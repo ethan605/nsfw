@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -176,19 +175,6 @@ var (
 	fakeID      = "1234"
 	fakeProfile = Profile{ID: fakeID, Username: "user_" + fakeID}
 )
-
-type mockWriter struct {
-	WrittenProfiles []Profile
-}
-
-func (m *mockWriter) Write(profile Profile) error {
-	if profile.ID == "-1" {
-		return errors.New("error writing to output stream")
-	}
-
-	m.WrittenProfiles = append(m.WrittenProfiles, profile)
-	return nil
-}
 
 func generateProfileDetailFixture(id string) object {
 	return object{
