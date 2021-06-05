@@ -77,7 +77,7 @@ func TestInstagramCrawlSuccess(t *testing.T) {
 		Seed:   fakeProfile,
 		Writer: writer,
 	}
-	limiterConfig := LimiterConfig{MaxTakes: 6}
+	limiterConfig := LimiterConfig{MaxTakes: 5}
 	crawler, _ := NewInstagramCrawler(config, limiterConfig)
 
 	crawler.Run()
