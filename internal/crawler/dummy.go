@@ -101,7 +101,7 @@ func (s *dummySession) crawl(profile Profile) {
 }
 
 func (s *dummySession) fetchProfileDetail(profile Profile) (Profile, error) {
-	time.Sleep(500)
+	// time.Sleep(500)
 
 	if profile.ID == "-1/1" {
 		return Profile{}, errors.New("fake error")
@@ -111,7 +111,7 @@ func (s *dummySession) fetchProfileDetail(profile Profile) (Profile, error) {
 }
 
 func (s *dummySession) fetchRelatedProfiles(fromProfile Profile) ([]Profile, error) {
-	time.Sleep(500)
+	// time.Sleep(500)
 
 	if strings.HasPrefix(fromProfile.ID, "-1/") {
 		return nil, errors.New("fake error")
