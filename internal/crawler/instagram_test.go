@@ -55,8 +55,8 @@ func TestInstagramCrawlSuccess(t *testing.T) {
 			userID, _ := variables["user_id"].(string)
 
 			fixturesMap := object{
-				"1234": generateRelatedProfilesFixture("2345", "3456", "4567", "5678", "-1"),
-				"2345": generateRelatedProfilesFixture("3456", "4567", "5678", "6789"),
+				"1234": generateRelatedProfilesFixture("2345", "3456", "4567", "5678"),
+				"2345": generateRelatedProfilesFixture("-1", "3456", "4567", "5678", "6789"),
 				"3456": generateRelatedProfilesFixture("4567", "5678", "6789", "7890"),
 			}
 

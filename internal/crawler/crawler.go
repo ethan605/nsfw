@@ -37,11 +37,13 @@ type Writer interface {
 }
 
 // Config holds configurations for the crawler
+// @param Client: HTTP client, auto initialise with `resty.New()` if `nil`
+// @param Seed: the initial profile to start crawling with
+// @param SessionID: cookie session ID
+// @param Writer: writing stream
 type Config struct {
-	// HTTP client, auto initialise with `resty.New()` if `nil`
-	Client *http.Client
-	// The initial profile to start crawling with
-	Seed Profile
-	// Writer writing stream
-	Writer Writer
+	Client    *http.Client
+	Seed      Profile
+	SessionID string
+	Writer    Writer
 }

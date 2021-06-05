@@ -89,8 +89,9 @@ func crawlInstagram() {
 	}
 
 	config := crawler.Config{
-		Seed:   seedInstagramProfile,
-		Writer: writer,
+		Seed:      seedInstagramProfile,
+		SessionID: "48056993126:dM0qI5smuIlzte:18",
+		Writer:    writer,
 	}
 
 	limiterConfig := crawler.LimiterConfig{

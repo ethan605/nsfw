@@ -21,9 +21,6 @@ var (
 
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
-	// TODO: spawn a headless browser, login & extract session ID from cookies
-	const sessionID = "48056993126:dM0qI5smuIlzte:18"
-
 	httpClient := config.Client
 
 	if httpClient == nil {
@@ -44,7 +41,6 @@ func NewInstagramCrawler(config Config, limiterConfig LimiterConfig) (Crawler, e
 		client:        client,
 		config:        config,
 		limiterConfig: limiterConfig,
-		sessionID:     sessionID,
 	}, nil
 }
 
@@ -74,14 +70,15 @@ func (s *instagramSession) Run() {
 var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
-	client        *resty.Client
+	// Received configurations
 	config        Config
 	limiterConfig LimiterConfig
-	sessionID     string
 
-	// Properties to control rate limiting
-	limiter       Limiter
+	// client: HTTP client
+	// jobsWg: wait group for crawl jobs
+	client        *resty.Client
 	jobsWg        *sync.WaitGroup
+	limiter       Limiter
 	profilesQueue chan Profile
 }
 
@@ -143,7 +140,7 @@ func (s *instagramSession) fetchProfileDetail(profile Profile) (Profile, error) 
 			Domain: ".instagram.com",
 			Path:   "/",
 			Name:   "sessionid",
-			Value:  s.sessionID,
+			Value:  s.config.SessionID,
 		}).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/{username}/")
@@ -200,8 +197,10 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 		}).
 		SetHeader("User-Agent", UserAgent).
 		SetCookie(&http.Cookie{
-			Name:  "sessionid",
-			Value: s.sessionID,
+			Domain: ".instagram.com",
+			Path:   "/",
+			Name:   "sessionid",
+			Value:  s.config.SessionID,
 		}).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/graphql/query")
