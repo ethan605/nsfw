@@ -35,7 +35,7 @@ func TestInstagramCrawlSuccess(t *testing.T) {
 	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
 
-	for _, id := range []string{"-1", "1234", "2345", "3456", "4567", "5678", "6789", "7890"} {
+	for _, id := range []string{"-1", "1234", "2345", "3456", "4567", "5678"} {
 		profileFixture := generateProfileDetailFixture(id)
 		profileResponder, _ := httpmock.NewJsonResponder(200, profileFixture)
 
@@ -54,16 +54,10 @@ func TestInstagramCrawlSuccess(t *testing.T) {
 			_ = json.Unmarshal([]byte(req.URL.Query().Get("variables")), &variables)
 			userID, _ := variables["user_id"].(string)
 
-			fixturesMap := object{
-				"1234": generateRelatedProfilesFixture("2345", "3456", "4567", "5678"),
-				"2345": generateRelatedProfilesFixture("-1", "3456", "4567", "5678", "6789"),
-				"3456": generateRelatedProfilesFixture("4567", "5678", "6789", "7890"),
-			}
+			fixture := generateRelatedProfilesFixture("-1")
 
-			fixture := fixturesMap[userID]
-
-			if fixture == nil {
-				fixture = fixturesMap["1234"]
+			if userID == fakeID {
+				fixture = generateRelatedProfilesFixture("2345", "3456", "4567", "5678")
 			}
 
 			resp, _ := httpmock.NewJsonResponse(200, fixture)
