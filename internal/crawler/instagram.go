@@ -11,14 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	// SuggestedQueryHash is the query param to fetch suggested profiles
-	SuggestedQueryHash = "d4d88dc1500312af6f937f7b804c68c3"
-
-	// UserAgent header for crawler session
-	UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"
-)
-
 // NewInstagramCrawler initializes a crawler for instagram.com
 func NewInstagramCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
 	httpClient := config.Client
@@ -86,6 +78,24 @@ func (s *instagramSession) baseURL() string {
 	return "https://www.instagram.com"
 }
 
+func (s *instagramSession) cookie() *http.Cookie {
+	return &http.Cookie{
+		Domain: ".instagram.com",
+		Path:   "/",
+		Name:   "sessionid",
+		Value:  s.config.SessionID,
+	}
+}
+
+func (s *instagramSession) suggestedQueryHash() string {
+	// The query param to fetch suggested profiles
+	return "d4d88dc1500312af6f937f7b804c68c3"
+}
+
+func (s *instagramSession) userAgent() string {
+	return "Mozilla/5.0 (X11; Linux x86_64; rv:88.0) Gecko/20100101 Firefox/88.0"
+}
+
 func (s *instagramSession) crawl(profile Profile) {
 	defer s.jobsWg.Done()
 
@@ -135,13 +145,8 @@ func (s *instagramSession) fetchProfileDetail(profile Profile) (Profile, error) 
 	resp, err := s.client.R().
 		SetPathParam("username", profile.Username).
 		SetQueryParam("__a", "1").
-		SetHeader("User-Agent", UserAgent).
-		SetCookie(&http.Cookie{
-			Domain: ".instagram.com",
-			Path:   "/",
-			Name:   "sessionid",
-			Value:  s.config.SessionID,
-		}).
+		SetHeader("User-Agent", s.userAgent()).
+		SetCookie(s.cookie()).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/{username}/")
 
@@ -192,16 +197,11 @@ func (s *instagramSession) fetchRelatedProfiles(fromProfile Profile) ([]Profile,
 
 	resp, err := s.client.R().
 		SetQueryParams(map[string]string{
-			"query_hash": SuggestedQueryHash,
+			"query_hash": s.suggestedQueryHash(),
 			"variables":  string(variables),
 		}).
-		SetHeader("User-Agent", UserAgent).
-		SetCookie(&http.Cookie{
-			Domain: ".instagram.com",
-			Path:   "/",
-			Name:   "sessionid",
-			Value:  s.config.SessionID,
-		}).
+		SetHeader("User-Agent", s.userAgent()).
+		SetCookie(s.cookie()).
 		SetResult(&schema{}).
 		Get(s.baseURL() + "/graphql/query")
 
