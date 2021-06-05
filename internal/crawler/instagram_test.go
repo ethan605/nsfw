@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -28,7 +29,7 @@ func TestNewInstagramCrawler(t *testing.T) {
 	assert.Equal(t, nil, err)
 }
 
-/* func TestInstagramCrawlSuccess(t *testing.T) {
+func TestInstagramCrawlSuccess(t *testing.T) {
 	// Setup HTTP requests mock
 	client := &http.Client{}
 	httpmock.ActivateNonDefault(client)
@@ -76,8 +77,8 @@ func TestNewInstagramCrawler(t *testing.T) {
 		Seed:   fakeProfile,
 		Writer: writer,
 	}
-	scheduler := NewScheduler(SchedulerConfig{MaxProfiles: 6})
-	crawler, _ := NewInstagramCrawler(config, scheduler)
+	limiterConfig := LimiterConfig{MaxTakes: 6}
+	crawler, _ := NewInstagramCrawler(config, limiterConfig)
 
 	crawler.Run()
 
@@ -89,7 +90,35 @@ func TestNewInstagramCrawler(t *testing.T) {
 
 	sort.Strings(profileIDs)
 	assert.Equal(t, []string{"1234", "2345", "3456", "4567", "5678"}, profileIDs)
-} */
+}
+
+func TestInstagramCrawlFailure(t *testing.T) {
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
+	defer httpmock.DeactivateAndReset()
+
+	writer := &mockWriter{}
+	config := Config{
+		Client: client,
+		Seed:   fakeProfile,
+		Writer: writer,
+	}
+	limiterConfig := LimiterConfig{MaxTakes: 10}
+	crawler, _ := NewInstagramCrawler(config, limiterConfig)
+
+	// Fetch profile detail error
+	assert.NotPanics(t, crawler.Run)
+
+	profileResponder, _ := httpmock.NewJsonResponder(200, generateProfileDetailFixture(fakeID))
+	httpmock.RegisterResponder(
+		"GET",
+		fmt.Sprintf("/%s/?__a=1", fakeProfile.Username),
+		profileResponder,
+	)
+
+	// Fetch related profiles error
+	assert.NotPanics(t, crawler.Run)
+}
 
 func TestFetchProfileDetail(t *testing.T) {
 	client := &http.Client{}
