@@ -25,6 +25,7 @@ func TestLimiterMaxTakesExceed(t *testing.T) {
 		assert.Less(t, diff, deferTime+5*time.Millisecond)
 	}
 
+	time.Sleep(deferTime)
 	assert.Equal(t, initialGoRoutines, runtime.NumGoroutine())
 }
 
