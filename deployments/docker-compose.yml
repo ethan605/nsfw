@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  crawler:
+    container_name: nsfw
+    environment:
+      ENV: ${ENV}
+    build:
+      context: ../
+      dockerfile: deployments/Dockerfile-crawler

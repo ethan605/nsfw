@@ -116,7 +116,7 @@ func crawlDummy() {
 	}
 
 	limiterConfig := crawler.LimiterConfig{
-		DeferTime:  1000 * time.Millisecond,
+		DeferTime:  200 * time.Millisecond,
 		MaxTakes:   10,
 		MaxWorkers: 1,
 	}
