@@ -46,7 +46,6 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	}, nil
 }
 
-// Run begins crawling data on instagram.com
 func (s *instagramSession) Run() {
 	go s.scheduler.Run(s.crawl, s.config.Seed)
 

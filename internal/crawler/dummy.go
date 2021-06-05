@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// NewDummyCrawler creates a new instance of DummyCrawler
 func NewDummyCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
 	if config.Seed.Username == "" && config.Seed.ID == "" {
 		return nil, errors.New("missing required Seed config")
@@ -27,36 +28,43 @@ func NewDummyCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error
 
 /* Private stuffs */
 
+var _ Crawler = (*dummySession)(nil)
+
 type dummySession struct {
+	// Received configurations
 	config        Config
 	limiterConfig LimiterConfig
+
+	limiter       Limiter
+	jobsWg        *sync.WaitGroup
+	profilesQueue chan Profile
 }
 
 func (s *dummySession) Run() {
-	limiter := NewLimiter(s.limiterConfig)
-	profilesQueue := make(chan Profile)
+	s.limiter = NewLimiter(s.limiterConfig)
+	s.profilesQueue = make(chan Profile)
 
 	go func() {
-		wg := &sync.WaitGroup{}
+		s.jobsWg = &sync.WaitGroup{}
 
-		wg.Add(1)
-		go s.crawl(s.config.Seed, wg, limiter, profilesQueue)
+		s.jobsWg.Add(1)
+		go s.crawl(s.config.Seed)
 
-		wg.Wait()
-		limiter.Wait()
+		s.jobsWg.Wait()
+		s.limiter.Wait()
 
-		close(profilesQueue)
+		close(s.profilesQueue)
 	}()
 
-	for profile := range profilesQueue {
+	for profile := range s.profilesQueue {
 		_ = s.config.Writer.Write(profile)
 	}
 }
 
-func (s *dummySession) crawl(profile Profile, wg *sync.WaitGroup, limiter Limiter, profilesQueue chan<- Profile) {
-	defer wg.Done()
+func (s *dummySession) crawl(profile Profile) {
+	defer s.jobsWg.Done()
 
-	ok := limiter.Take()
+	ok := s.limiter.Take()
 
 	if !ok {
 		logrus.WithField("profile", profile).Info("max takes reached")
@@ -75,8 +83,8 @@ func (s *dummySession) crawl(profile Profile, wg *sync.WaitGroup, limiter Limite
 		return
 	}
 
-	profilesQueue <- profileDetail
-	limiter.Done(1)
+	s.profilesQueue <- profileDetail
+	s.limiter.Done(1)
 
 	relatedProfiles, err := s.fetchRelatedProfiles(profile)
 
@@ -85,10 +93,10 @@ func (s *dummySession) crawl(profile Profile, wg *sync.WaitGroup, limiter Limite
 		return
 	}
 
-	wg.Add(len(relatedProfiles))
+	s.jobsWg.Add(len(relatedProfiles))
 
 	for _, relatedProfile := range relatedProfiles {
-		go s.crawl(relatedProfile, wg, limiter, profilesQueue)
+		go s.crawl(relatedProfile)
 	}
 }
 
