@@ -90,7 +90,7 @@ type limiter struct {
 }
 
 func (l *limiter) newThrottle() {
-	l.throttle = make(chan struct{}, l.maxTakes)
+	l.throttle = make(chan struct{}, l.maxWorkers)
 
 	l.wg.Add(1)
 

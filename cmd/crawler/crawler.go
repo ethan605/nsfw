@@ -93,13 +93,13 @@ func crawlInstagram() {
 		Writer: writer,
 	}
 
-	schedulerConfig := crawler.SchedulerConfig{
-		DeferTime:   time.Second,
-		MaxProfiles: 20,
-		MaxWorkers:  1,
+	limiterConfig := crawler.LimiterConfig{
+		DeferTime:  time.Second,
+		MaxTakes:   10,
+		MaxWorkers: 1,
 	}
-	scheduler := crawler.NewScheduler(schedulerConfig)
-	instagramCrawler, err := crawler.NewInstagramCrawler(config, scheduler)
+
+	instagramCrawler, err := crawler.NewInstagramCrawler(config, limiterConfig)
 	panicOnError(err)
 
 	instagramCrawler.Run()
@@ -115,10 +115,11 @@ func crawlDummy() {
 	}
 
 	limiterConfig := crawler.LimiterConfig{
-		DeferTime:  200 * time.Millisecond,
-		MaxTakes:   20,
-		MaxWorkers: 3,
+		DeferTime:  1000 * time.Millisecond,
+		MaxTakes:   10,
+		MaxWorkers: 1,
 	}
+
 	dummyCrawler, err := crawler.NewDummyCrawler(config, limiterConfig)
 	panicOnError(err)
 

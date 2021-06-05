@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sort"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -13,23 +12,23 @@ import (
 )
 
 func TestNewInstagramCrawler(t *testing.T) {
-	scheduler := NewScheduler(SchedulerConfig{})
+	limiterConfig := LimiterConfig{}
 
-	_, err := NewInstagramCrawler(Config{}, scheduler)
+	_, err := NewInstagramCrawler(Config{}, limiterConfig)
 	assert.EqualError(t, err, "missing required Seed config")
 
-	_, err = NewInstagramCrawler(Config{Seed: fakeProfile}, scheduler)
+	_, err = NewInstagramCrawler(Config{Seed: fakeProfile}, limiterConfig)
 	assert.EqualError(t, err, "missing required Writer config")
 
 	config := Config{
 		Seed:   fakeProfile,
 		Writer: &mockWriter{},
 	}
-	_, err = NewInstagramCrawler(config, scheduler)
+	_, err = NewInstagramCrawler(config, limiterConfig)
 	assert.Equal(t, nil, err)
 }
 
-func TestInstagramCrawlSuccess(t *testing.T) {
+/* func TestInstagramCrawlSuccess(t *testing.T) {
 	// Setup HTTP requests mock
 	client := &http.Client{}
 	httpmock.ActivateNonDefault(client)
@@ -90,9 +89,9 @@ func TestInstagramCrawlSuccess(t *testing.T) {
 
 	sort.Strings(profileIDs)
 	assert.Equal(t, []string{"1234", "2345", "3456", "4567", "5678"}, profileIDs)
-}
+} */
 
-func TestCrawlFailure(t *testing.T) {
+func TestFetchProfileDetail(t *testing.T) {
 	client := &http.Client{}
 	httpmock.ActivateNonDefault(client)
 	defer httpmock.DeactivateAndReset()
@@ -102,12 +101,8 @@ func TestCrawlFailure(t *testing.T) {
 	}
 
 	// No profile detail responder error
-	_, _, err := session.crawl(fakeProfile)
+	_, err := session.fetchProfileDetail(fakeProfile)
 	assert.NotEqual(t, nil, err)
-
-	session = instagramSession{
-		client: resty.NewWithClient(client),
-	}
 
 	httpmock.RegisterResponder(
 		"GET",
@@ -115,12 +110,9 @@ func TestCrawlFailure(t *testing.T) {
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
-	_, _, err = session.crawl(fakeProfile)
+	_, err = session.fetchProfileDetail(fakeProfile)
 	assert.EqualError(t, err, "fetch profile error")
 
-	session = instagramSession{
-		client: resty.NewWithClient(client),
-	}
 	profileResponder, _ := httpmock.NewJsonResponder(200, generateProfileDetailFixture(fakeID))
 	httpmock.RegisterResponder(
 		"GET",
@@ -128,21 +120,49 @@ func TestCrawlFailure(t *testing.T) {
 		profileResponder,
 	)
 
-	// No related profiles responder error
-	_, _, err = session.crawl(fakeProfile)
-	assert.NotEqual(t, nil, err)
+	profileDetail, err := session.fetchProfileDetail(fakeProfile)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, fakeID, profileDetail.ID)
+	assert.Equal(t, "user_"+fakeID, profileDetail.Username)
+	assert.Equal(t, "User "+fakeID, profileDetail.DisplayName)
+}
 
-	session = instagramSession{
+func TestFetchRelatedProfiles(t *testing.T) {
+	client := &http.Client{}
+	httpmock.ActivateNonDefault(client)
+	defer httpmock.DeactivateAndReset()
+
+	session := instagramSession{
 		client: resty.NewWithClient(client),
 	}
+
+	// No related profiles responder error
+	_, err := session.fetchRelatedProfiles(fakeProfile)
+	assert.NotEqual(t, nil, err)
+
 	httpmock.RegisterResponder(
 		"GET",
 		"/graphql/query",
 		httpmock.NewStringResponder(500, "Invalid"),
 	)
 
-	_, _, err = session.crawl(fakeProfile)
+	_, err = session.fetchRelatedProfiles(fakeProfile)
 	assert.EqualError(t, err, "fetch related profiles error")
+
+	relatedProfilesResponder, _ := httpmock.NewJsonResponder(200, generateRelatedProfilesFixture("2345", "3456", "4567", "5678"))
+	httpmock.RegisterResponder(
+		"GET",
+		"/graphql/query",
+		relatedProfilesResponder,
+	)
+
+	relatedProfiles, err := session.fetchRelatedProfiles(fakeProfile)
+	assert.Equal(t, nil, err)
+	assert.Equal(t, 4, len(relatedProfiles))
+	assert.Equal(t, "2345", relatedProfiles[0].ID)
+	assert.Equal(t, "3456", relatedProfiles[1].ID)
+	assert.Equal(t, "4567", relatedProfiles[2].ID)
+	assert.Equal(t, "5678", relatedProfiles[3].ID)
 }
 
 func TestInstagramSessions(t *testing.T) {

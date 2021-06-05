@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
@@ -18,7 +20,7 @@ var (
 )
 
 // NewInstagramCrawler initializes a crawler for instagram.com
-func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
+func NewInstagramCrawler(config Config, limiterConfig LimiterConfig) (Crawler, error) {
 	// TODO: spawn a headless browser, login & extract session ID from cookies
 	const sessionID = "48056993126:dM0qI5smuIlzte:18"
 
@@ -39,20 +41,31 @@ func NewInstagramCrawler(config Config, scheduler Scheduler) (Crawler, error) {
 	}
 
 	return &instagramSession{
-		client:    client,
-		config:    config,
-		scheduler: scheduler,
-		sessionID: sessionID,
+		client:        client,
+		config:        config,
+		limiterConfig: limiterConfig,
+		sessionID:     sessionID,
 	}, nil
 }
 
 func (s *instagramSession) Run() {
-	go s.scheduler.Run(s.crawl, s.config.Seed)
+	s.limiter = NewLimiter(s.limiterConfig)
+	s.profilesQueue = make(chan Profile)
 
-	for profile := range s.scheduler.Results() {
-		if err := s.config.Writer.Write(profile); err != nil {
-			logrus.WithField("error", err).Error("writing failed")
-		}
+	go func() {
+		s.jobsWg = &sync.WaitGroup{}
+
+		s.jobsWg.Add(1)
+		go s.crawl(s.config.Seed)
+
+		s.jobsWg.Wait()
+		s.limiter.Wait()
+
+		close(s.profilesQueue)
+	}()
+
+	for profile := range s.profilesQueue {
+		_ = s.config.Writer.Write(profile)
 	}
 }
 
@@ -61,31 +74,58 @@ func (s *instagramSession) Run() {
 var _ Crawler = (*instagramSession)(nil)
 
 type instagramSession struct {
-	client    *resty.Client
-	config    Config
-	scheduler Scheduler
-	sessionID string
+	client        *resty.Client
+	config        Config
+	limiterConfig LimiterConfig
+	sessionID     string
+
+	// Properties to control rate limiting
+	limiter       Limiter
+	jobsWg        *sync.WaitGroup
+	profilesQueue chan Profile
 }
 
 func (s *instagramSession) baseURL() string {
 	return "https://www.instagram.com"
 }
 
-func (s *instagramSession) crawl(profile Profile) (Profile, []Profile, error) {
-	logrus.WithField("profile", profile).Info("crawling")
+func (s *instagramSession) crawl(profile Profile) {
+	defer s.jobsWg.Done()
+
+	ok := s.limiter.Take()
+
+	if !ok {
+		logrus.WithField("profile", profile).Info("max takes reached")
+		return
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"profile": profile,
+		"time":    time.Now().Format("15:04:05.000"),
+	}).Info("crawling")
+
 	profileDetail, err := s.fetchProfileDetail(profile)
 
 	if err != nil {
-		return Profile{}, nil, err
+		logrus.WithField("profile", profile).Error("fetchProfileDetail failed")
+		return
 	}
+
+	s.profilesQueue <- profileDetail
+	s.limiter.Done(1)
 
 	relatedProfiles, err := s.fetchRelatedProfiles(profile)
 
 	if err != nil {
-		return Profile{}, nil, err
+		logrus.WithField("profile", profile).Error("fetchRelatedProfiles failed")
+		return
 	}
 
-	return profileDetail, relatedProfiles, nil
+	s.jobsWg.Add(len(relatedProfiles))
+
+	for _, relatedProfile := range relatedProfiles {
+		go s.crawl(relatedProfile)
+	}
 }
 
 func (s *instagramSession) fetchProfileDetail(profile Profile) (Profile, error) {
