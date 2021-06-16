@@ -1,0 +1,32 @@
+FROM golang:alpine AS builder
+
+# Set necessary environmet variables needed for our image
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
+
+RUN mkdir -p /nsfw
+WORKDIR /nsfw
+
+# Copy and download dependency using go mod
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the code into the container
+COPY . .
+
+# Build the application
+RUN cd cmd/crawler && go build -o crawler .
+
+# Build a small image
+FROM alpine
+
+RUN adduser --disabled-password --gecos '' app
+USER app:app
+
+WORKDIR /home/app
+
+COPY --from=builder --chown=app:app /nsfw/cmd/crawler/crawler .
+
+ENTRYPOINT ["./crawler"]
